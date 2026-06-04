@@ -1,0 +1,443 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[dvipdfmx,a4j]{jarticle}
+
+\usepackage{jsaisig}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\setlength{\textfloatsep}{10pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{0pt}
+\renewcommand{\baselinestretch}{0.95}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+% 和文タイトル
+\title{記述回答自動採点は人間採点を超えたのか：\\-- テスト理論に基づく到達可能精度の上限推定 --}
+
+% 英文タイトル
+\etitle{Has Automated Essay Scoring Outperformed Human Raters? \\
+-- An Achievable Accuracy Ceiling Based on Test Theory --} 
+
+\author{宇都 雅輝%
+	\thanks{連絡先：電気通信大学大学院情報理工学研究科 \newline%
+		　　　　　　〒182-8585 東京都調布市調布ヶ丘1-5-1 \newline%
+		　　　　　　E-mail: uto@ai.lab.uec.ac.jp}}
+
+% 所属
+\affiliation{%
+	電気通信大学\\ 
+	The University of Electro-Communications}
+
+\abstract{
+Automated essay scoring (AES) is commonly evaluated on public benchmarks using quadratic weighted kappa (QWK). Because benchmark labels are assigned by human raters and inevitably contain measurement error, it remains unclear both what QWK is theoretically attainable and what level is practically sufficient for deployment. We derive two dataset-specific QWK targets based on the reliability concept in classical test theory, which can be estimated from standard two-rater benchmarks without additional annotation. The first is the theoretical ceiling: the maximum QWK that an ideal AES model, which perfectly predicts latent true scores, can achieve against noisy labels. The second is the human-like ceiling: the QWK attainable by an AES model with human-level scoring error, providing a practical target when AES is intended to replace a single human rater. We further show that human–human QWK, often used as a ceiling reference, can underestimate the true ceiling. 
+}
+
+\maketitle
+\thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{はじめに}\label{sec:intro}
+
+記述回答自動採点（Automated Essay Scoring; AES）は，人工知能の教育応用に関わる主要な研究課題の一つとして長年注目を集めてきた~\cite{uto-review2021}．AES研究の中心的な目標の一つは採点精度の向上であり，その精度比較は，公開ベンチマークデータセットを用いてQWK（Quadratic Weighted Kappa）を主たる評価指標として行われてきた~\cite{uto-review2021}．
+
+他方で，広く利用されるベンチマークデータセットであっても，必ずしも信頼性の高い得点ラベルが付与されているとは限らない．
+一般にデータセット中の各回答文に対する得点データは，複数名の人間評価者（アノテータ）によって付与されるが，事前に訓練を受けた評価者であっても，疲労や誤解，不注意，評価基準の曖昧さなどの意図しない要因によって採点に誤差が混入しうる~\cite{uto2022learning}．
+データセット中の得点データに一定の誤差が想定される場合，仮に真の得点を完全に予測できる理想的なAESが実現できても，その予測得点とデータセット中の実得点との一致度は最大値（QWKであれば1）には到達しない．
+
+これまでのAES研究では，データセット中のラベルノイズの多寡の分析やその影響を軽減する方法論などはしばしば研究されてきたが~\cite{uto2022learning}，得点ラベルの信頼性を考慮した予測精度の到達上限に関する議論は十分になされてこなかった．
+この点が不明瞭なままで精度比較が行われると，精度の改善余地の見積りが曖昧になり，非本質的な精度向上の追及や性能改善の拡大解釈などを引き起こしうる．
+また，AESの本来の目標である実運用場面では，精度の微小な差よりも「その精度が人間評価者の代替として十分か」といった，精度値の絶対的な意味解釈が重要となることが多い．
+
+そこで本研究では，個々の回答に2名の人間評価者が得点付けして作成されたデータセットを想定し，古典的テスト理論（Classical Test Theory; CTT）に基づいて算出される得点ラベルの信頼性をもとに，AES研究で使用される最も主要な指標であるQWKに対して以下の二つの目標値を提案する．
+\begin{enumerate}
+\setlength{\itemsep}{1pt}
+\item {\bf 理論的精度上限（Theoretical ceiling）：}各回答の真の得点を完全に予測できる理想的なAESであっても得点データの信頼性の影響によって越えられないQWK値であり，AES研究の精度追求の目標値を与える．
+\item {\bf 人間相当精度目標（Human-like ceiling）：}人間評価者と同程度の採点誤差をもつAESが到達可能なQWK値であり，人間評価者の代替としてAESを使用する想定における現実的な目標値を与える．
+\end{enumerate}
+さらに本研究では，従来研究でしばしば一つの目標値として利用されてきた「人間評価者間のQWK」が，真の精度上限を過小評価した保守的な目標値であることも証明する．これにより，経験的に採用されてきた従来の達成目標に関する誤解を是正する．
+
+本研究は，データセットごとのAES精度を，相対比較に頼らずに絶対的に解釈する理論を与えるものであり，AES研究の目標を再定義するとともに，実運用への橋渡しも担う重要な理論研究と解釈できる．
+
+\vspace{-3mm}
+\section{タスク設定} \label{sec:assumption}
+
+AESのベンチマークデータセットでは，各回答に対して複数の人間評価者（アノテータ）が与えた得点の平均または合計を目的変数として採用する場合が多い．
+本研究では，この状況を想定し，CTTに基づく信頼性の概念に基づいて目標値を導出する．
+なお，本研究では設定の一般性と単純さを優先し，回答あたりの評価者数が$2$名の場合に焦点化するが，本稿の内容は$3$名以上への一般化も可能である．
+
+本研究では，CTTの一般的な仮定に従い，評価者$j$が回答$i$に対して与える得点$X_{ij}$が，回答$i$が持つ潜在的な真の得点にランダムな誤差が加算されて観測されると考え，以下の線形モデルを仮定する．
+\begin{equation}
+X_{ij} = T_i + \varepsilon_{ij}
+\label{eq:ctt_model}
+\end{equation}
+ここで，$T_i$は回答$i$の潜在的な真の得点を表し，$\varepsilon_{ij}$は誤差を表す．
+誤差項については，標準的なCTTの仮定として，$\mathbb{E}[\varepsilon_{ij}] = 0$，$\mathrm{Cov}(T_i, \varepsilon_{ij}) = 0$，$\mathrm{Cov}(\varepsilon_{ij}, \varepsilon_{ij'}) = 0$（$j \neq j'$）をおく．ただし，$\mathbb{E}[\cdot]$は期待値を，$\mathrm{Cov}(\cdot,\cdot)$は引数として与える2変数間の共分散を表す．
+
+また，AESの目的変数が，$J$人（本研究では$J=2$）の評価者の観測得点の平均として次式で与えられるとする．
+\begin{equation}
+Y_{i} = \frac{1}{J} \sum_{j=1}^{J} X_{ij}
+\label{eq:mean_score}
+\end{equation}
+なお，本稿では観測得点の平均を考えて議論を進めるが，$Y_{i}$が$J$人の評価者得点の合計として与えられる場合でも，以降の議論は全て同様に適用できる．
+
+ここで，AESの目標が，$Y$を目的変数とする訓練データを用いて，各回答の真の得点$T$を予測できるモデルを構築することであると考える．
+この目標は統計的学習の観点から次のように正当化される．
+まず，標準的なAESモデルは平均二乗誤差（Mean Squared Error; MSE）の最小化に基づいて学習されるが，これは入力特徴量$\bm{Z}$に対する条件付き期待値$\hat{Y} = \mathbb{E}[Y \mid \bm{Z}]$の推定と等価である．
+また，上述のCTTの仮定の下で，観測得点の期待値は真の得点に一致する（すなわち，$\mathbb{E}[Y \mid T] = T$）．
+したがって，入力$\bm{Z}$が$T$を十分に説明する場合，観測得点$Y$に対する回帰モデルの学習は，実質的に真の得点$T$の予測モデルの学習と等価とみなせる．
+
+ここで，真の得点$T$を誤差なく予測できる理想的なAESモデルが構築できたと仮定し，そのモデルの性能評価を評価データ上の目的変数$Y$との比較を通して行うとする．
+精度評価の指標にQWKを利用するとき，到達可能なQWKの上限は，目的変数$Y$に内在する誤差成分の大きさに制約されることになる．
+本研究の発想は，この誤差成分の大きさをCTTの信頼性の考え方で推定した上で，その誤差の下で到達可能なQWK値を導出しようというものである．
+
+\vspace{-2mm}
+\section{提案手法}
+
+本章では，上記の考え方に基づいて二つの目標値を導出する．\ref{sec:qwk_ub}節では理論的精度上限を導出し，\ref{sec:human_like_ceiling}節では人間相当精度目標を導出する．さらに，\ref{sec:human_qwk}節で人間評価者間のQWKの解釈を明らかにする．
+
+\vspace{-2mm}
+\subsection{理論的精度上限の導出}\label{sec:qwk_ub}
+
+上述の通り，QWKの理論的精度上限は，目的変数$Y$が持つ誤差成分の大きさに依存する．
+CTTでは，観測値に内包する誤差成分の大きさを信頼性と呼ばれる概念で定義する．
+式\eqref{eq:ctt_model}と式\eqref{eq:mean_score}より，目的変数は
+\begin{equation}
+Y_i  = \frac{1}{J}\sum_{j=1}^J X_{ij} = T_i + \bar{\varepsilon}_i, \quad \bar{\varepsilon}_i = \frac{1}{J}\sum_{j=1}^J \varepsilon_{ij}
+\label{eq:Y_decomp}
+\end{equation}
+と分解できる．このとき，CTTにおける目的変数$Y$の信頼性は次式で定義される．
+\begin{equation}
+\rho_{Y} = \frac{\sigma^2_{T}}{\sigma^2_{Y}} = \frac{\sigma^2_{T}}{\sigma^2_{T} + \sigma^2_{\bar{\varepsilon}}} \label{eq:reliability_def_Y}
+\end{equation}
+ここで，$\sigma^2_{Y}$，$\sigma^2_{T}$，$\sigma^2_{\bar{\varepsilon}}$はそれぞれ目的変数$Y$，真の得点$T$，平均誤差$\bar{\varepsilon}$の分散を表す．
+この式は，誤差分散$\sigma^2_{\bar{\varepsilon}}$が$0$に近づくほど信頼性が$1$に近づくことを意味する．
+
+本研究では，この信頼性$\rho_{Y}$に基づいてQWKの理論的上限を導出する．
+しかし，真得点の分散$\sigma^2_{T}$は直接観測できないため，上式の定義通りに信頼性を計算することはできない．
+そこで本研究では，観測可能なデータのみから$\rho_{Y}$の推定量$\hat{\rho}_{Y}$を求めて利用する．
+
+目的変数$Y$の信頼性$\rho_{Y}$の推定法は，データセット作成時の評価者割当デザインによって異なる．
+本研究では，一定数の評価者集合から，各回答に無作為に$J$人を割り当てて採点する標準的なデザインを想定する．
+この場合，信頼性の推定値$\hat{\rho}_{Y}$は，一元配置ランダム効果・平均評定に基づく級内相関係数（ICC: Intraclass Correlation Coefficient）で求められる．
+
+ここで，信頼性$\hat{\rho}_{Y}$のもとでの理論的上限を導出するために，理想的なAESモデル（以降では「理想モデル」と呼ぶ）を考える．
+理想モデルは，真得点$T$と完全に相関した予測が可能（すなわち，$\hat{Y} \propto T$）であり，さらに，予測得点の平均と分散も目的変数のそれらと完全に一致する（すなわち，$\mu_{\hat{Y}}=\mu_{Y} \land \sigma_{\hat{Y}}=\sigma_{Y}$）と仮定する．
+このとき，このモデルの予測値$\hat{Y}$と信頼性$\rho_{Y}$の目的変数$Y$との相関係数$r_{\max}$は，付録の証明より次式で与えられる．
+\begin{equation}
+r_{\max} = \sqrt{\rho_{Y}}
+\label{eq:rmax}
+\end{equation}
+この式は，真の得点との相関が1となる予測が可能なAESモデルであっても，データセットの得点データが誤差を含んでいるために，観測される相関係数が$1$にはならず$\sqrt{\rho_{Y}}$で頭打ちとなることを示している．したがって，$\sqrt{\rho_{Y}}$が相関係数の理論的な上限と解釈でき，その推定量$\hat{r}_{\max}$は$\sqrt{\hat{\rho}_{Y}}$として求められる．
+
+次に，上記の相関係数の上限値をもとにQWKの上限値を算出する．
+本研究では，Linの合意相関係数（Concordance Correlation Coefficient; CCC）に基づくQWKの近似~\cite{barnhart2007overall}を採用する．
+ここで，AESモデルの予測値$\hat{Y}$と目的変数$Y$との相関係数を$r$とすると，CCCによるQWKの近似値（以降では$\kappa$と書く）は次式で求められる~\cite{barnhart2007overall}．
+\begin{equation}
+\kappa \approx r \left( \frac{2 \sigma_{\hat{Y}} \sigma_{Y}}{\sigma_{\hat{Y}}^2 + \sigma_{Y}^2 + (\mu_{\hat{Y}} - \mu_{Y})^2} \right)
+\label{eq:qwk_max}
+\end{equation}
+ただし，$\mu_{\hat{Y}}$と$\sigma^2_{\hat{Y}}$はモデルの予測値$\hat{Y}$の平均と分散，$\mu_{Y}$と$\sigma^2_{Y}$は実測の目的変数$Y$の平均と分散を表す．
+
+CCC近似を用いると，$r_{\max}$かつ$\mu_{\hat{Y}}=\mu_{Y} \land \sigma_{\hat{Y}}=\sigma_{Y}$を達成する理想モデルが示すQWKは次式で書ける．
+\begin{equation}
+\kappa_{\max} \approx r_{\max} = \sqrt{\rho_{Y}}
+\end{equation}
+すなわち，この値が，信頼性$\rho_{Y}$のデータセットにおいて到達可能なQWKの理論的上限値を示し，その推定量$\hat{\kappa}_{\max}$は$\sqrt{\hat{\rho}_{Y}}$で与えられることになる．
+
+なお，ここで利用しているCCCによるQWK近似は，データを等間隔の数値尺度として扱う連続量近似に依存する．
+他方で，AESでは得点の丸め処理や端点処理などが行われる場合があり，これが近似精度に影響を与える可能性がある．
+本研究では，\ref{sec:simulation}章のシミュレーション実験で，これらの処理下でも近似精度が十分に高いことを確認する．
+
+\vspace{-3mm}
+\subsection{人間相当精度目標の導出}\label{sec:human_like_ceiling}
+
+本節では，上記とは別の目標値として，AESを人間評価者の代替とみなす場合の目標値を導出する．
+実運用では，AESによる完全な自動採点ではなく，AESを二重採点の片側や人間採点の検証に使用する形で導入されることも多い．
+このような場面では，平均的な人間評価者と同程度の誤差特性を持つモデル（以降では，人間相当モデルと呼ぶ）が到達し得る精度が，導入判断のためのより合理的な目標値になるといえる．
+そこでここでは，人間相当モデルが目的変数$Y$に対して達成しうるQWKの到達水準を人間相当精度目標として導出する．導出の方針は先と同様であり，1名評価者相当の信頼性をもとに，それに対応する相関係数を導出し，CCC近似によってQWKの目標値を導出する．
+
+今，人間相当モデルの出力を$\tilde{X}$とし，その誤差分散が単独評価者$X$と同程度であると考え，次式が成り立つと仮定する．
+\begin{equation}
+\tilde{X}_{i} = T_i + \eta_{i}
+\end{equation}
+ただし，$\mathbb{E}[\eta_{i}] = 0$，$\mathrm{Cov}(T_i, \eta_{i}) = 0$，$\mathrm{Cov}(\varepsilon_{ij}, \eta_{i}) = 0$，$\sigma^2_{\eta} = \sigma^2_{\varepsilon}$とする．
+$\sigma^2_{\eta}$と$\sigma^2_{\varepsilon}$は$\eta_i$と$\varepsilon$の分散を表す．
+
+このとき，$\tilde{X}$の信頼性は，単独評価者の観測得点$X$の信頼性と等価となり，次式で与えられる．
+\begin{equation}
+\rho_{1} = \frac{\sigma_T^2}{\sigma_X^2} = \frac{\sigma_T^2}{\sigma_T^2+\sigma_{\varepsilon}^2}\label{eq:reliability_def_1}
+\end{equation}
+
+信頼性$\rho_1$に基づくと，付録の証明より，$\tilde{X}$と目的変数$Y$の相関$r_{\mathrm{HL}}$は次式で与えられる．
+\begin{equation}
+r_{\mathrm{HL}} = \sqrt{\rho_{1}\rho_{Y}}
+\label{eq:r_humanlike}
+\end{equation}
+
+ここで，前節と同様にQWKのCCC近似を前提とすると，予測値$\tilde{X}$の平均と分散が$Y$と整合している状況では，$r_{\mathrm{HL}}$に対応するQWKは次式で求められる．
+\begin{equation}
+\kappa_{\mathrm{HL}} \approx r_{\mathrm{HL}} = \sqrt{\rho_{1}\rho_{Y}}
+\label{eq:kappa_humanlike}
+\end{equation}
+
+上記の$r_{\mathrm{HL}}$と$\kappa_{\mathrm{HL}}$は，信頼性$\rho_1$の評価データセットにおいて人間相当モデルが達成できる相関とQWKを解釈できるため，本研究ではこれを人間相当精度目標とみなす．
+これらの推定値$\hat{r}_{\mathrm{HL}}$と$\hat{\kappa}_{\mathrm{HL}}$は，信頼性指標の推定値を用いて$\sqrt{\widehat{\rho}_1\widehat{\rho}_Y}$として算出できる．
+なお，$\rho_1$の推定量$\hat{\rho}_1$は，一元配置ランダム効果・単独評定に基づくICCとして推定できる．
+
+\vspace{-3mm}
+\subsection{評価者間QWKの解釈}\label{sec:human_qwk}
+
+\ref{sec:intro}章で述べた通り，先行研究ではしばしば評価者間の相関やQWK（以降ではそれぞれ$r_{H}$と$\kappa_{H}$と呼ぶ）をAES精度の一つの目標値としてきた．
+ここでは，これらが真の上限を過小評価した目標値であることを示す．
+
+ここで，2系列の人間得点($X_{\cdot 1},X_{\cdot 2}$)間の相関を$r_H$とすると，付録より次の不等式が証明できる．
+\begin{equation}
+    r_H \le r_{\max}
+    \label{eq:rH_le_rmax}
+\end{equation}
+
+さらに，CCCによるQWK近似から，
+\begin{equation}
+    \kappa_H \approx r_H\,F_H \le r_H
+    \label{eq:kappaH_le_rH}
+\end{equation}
+が導出できる．ただし，$F_H$は次式で与えられる．
+\begin{equation}
+F_H = \frac{2 \sigma_{1} \sigma_{2}}{\sigma_{1}^2 + \sigma_{2}^2 + (\mu_{1} - \mu_{2})^2}
+\end{equation}
+ここで，$\mu_{j}$と$\sigma_{j}^2$は$j$系列目の人間得点の平均と分散を表す．
+なお，式\eqref{eq:kappaH_le_rH}における$r_H\,F_H \le r_H$の成立は，$\sigma_{1}^2 + \sigma_{2}^2 \ge 2 \sigma_{1} \sigma_{2}$から常に$0 \le F_H \le 1$が成り立ち，かつ，一般に$r_H \ge 0$となることから示される．
+
+以上から，$r_{\max} \approx \kappa_{\max}$であったことに注意すると，次式の成立が期待されることがわかる．
+\begin{equation}
+    \kappa_H \lesssim r_H \le r_{\max} \approx \kappa_{\max}
+    \label{eq:kappaH_pessimistic}
+\end{equation}
+
+この式は，人間同士の相関やQWKが，本研究で導出した理論的精度上限より一般に低くなることを意味している．
+この帰結は，信頼性が低い個別評価者同士よりも，信頼性が高い複数評価者の平均得点とそれを目標値とするAESの予測値の間の方が，ノイズの低減によって一致しやすくなると考えれば，合理的といえる．
+以上から，人間同士のQWKは，AESの真の性能上限を過小評価した保守的な目標値といえる．
+
+また，人間相当精度目標$\kappa_{\mathrm{HL}}$は，付録の証明から一般に次式を満たし，人間評価者間のQWK（$\kappa_H$）と，理論的精度上限$\kappa_{\max}$の間に位置すると期待できる．
+\begin{equation}
+    \kappa_H \lesssim \kappa_{\mathrm{HL}}\le \kappa_{\max} \label{eq:all_index}
+\end{equation}
+
+\vspace{-3mm}
+\section{シミュレーション実験による検証}
+\label{sec:simulation}
+
+ここでは，本研究で導出した目標値の妥当性を検証するために，シミュレーション実験を実施した．
+本実験では，実データでは観測不可能な真の得点を生成した上で，一定の誤差を反映させた観測データを生成し，それらを用いて次の3点を検証する．
+（1）真得点と観測平均点との実測のQWKと，本研究で提案した信頼性に基づく理論的精度上限が高精度に一致するか．
+（2）\ref{sec:human_qwk}節で示した目標値間の関係性（$\kappa_H \le \kappa_{\mathrm{HL}}\le \kappa_{\max}$）と整合した結果が得られるか．
+（3）QWKのCCC近似が，データの離散化や端点処理を含むAESの実験設定下でも十分に高精度であるか．
+
+\vspace{-3mm}
+\subsection{提案した目標値の妥当性評価}\label{sec:simulation_procedure}
+
+本実験では，サンプルサイズを$N=1000$，得点範囲を$0$から$10$の整数値とし，真の得点$T_i$をランダムに生成した．
+具体的には，次式の通り，平均$\mu=5.0$，標準偏差$\sigma = 3.3$の正規分布からサンプリングした値を，最近接整数に丸め，得点範囲$[0, 10]$内にクリッピング処理することで，真の得点の集合を生成した．
+\begin{equation}
+    T_{i} = \text{clip}(\text{round}(T^{\prime}_i)), \quad T^{\prime}_i \sim N(5.0, 3.3^2)
+\end{equation}
+
+次に，独立同分布に従う誤差を真得点$T_i$に付加する次の操作で，2名の評価者の得点$X_{i1}, X_{i2}$を生成した．
+\begin{equation}
+    X_{ij} = \text{clip}(\text{round}(T_i + \varepsilon_{ij})), \quad \varepsilon_{ij} \sim N(0, \sigma_{noise}^2)
+\end{equation}
+ここで，$\sigma_{noise}^2$は誤差の分散を表す．
+さらに，目的変数$Y_i$を，評価者2名の得点の平均値$Y_i = \mathrm{round}((X_{i1} + X_{i2})/2)$として作成した．
+
+本実験では，以上のデータ生成を，$\sigma_{noise}$を$\{0.25, 0.50$, $1.00, 2.00, 3.00\}$ の5段階で変化させながら，各条件につき100回ずつを行い，それぞれの試行において理論的精度上限（$\hat{\kappa}_{\max}$），人間相当精度目標（$\hat{\kappa}_{\mathrm{HL}}$），2名の評価者得点間のQWK（$\hat{\kappa}_{H}$）を求めた．さらに，理想的なAESモデルの予測が$\hat{Y}_i = T_i$を達成すると想定し，その予測値$\hat{Y} = T_i$と目的変数$Y$と相関とQWK（以降では，$r_{\mathrm{true}}$，$\kappa_{\mathrm{true}}$と書く）も求めた．
+
+\begin{table}[t]
+\centering
+\caption{シミュレーション実験の結果}
+\label{tab:simulation_ideal}
+\setlength{\tabcolsep}{5pt} 
+\begin{tabular}{cccccc} % 列数をソースに合わせて調整
+  \toprule
+  $\sigma_{noise}$ & $r_{\mathrm{true}}$ & $\kappa_{\mathrm{true}}$ & $\hat{\kappa}_{\max}$ & $\hat{\kappa}_{\mathrm{HL}}$ & $\hat{\kappa}_{H}$ \\
+  \midrule
+  0.25 & 0.993 & 0.990 & 0.996 & 0.989 & 0.985\\
+  0.50 & 0.987 & 0.982 & 0.991 & 0.974 & 0.965\\
+  1.00 & 0.967 & 0.961 & 0.972 & 0.919 & 0.895\\
+  2.00 & 0.897 & 0.890 & 0.901 & 0.749 & 0.683\\
+  3.00 & 0.802 & 0.797 & 0.806 & 0.563 & 0.482\\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+実験結果を表\ref{tab:simulation_ideal}に示す．
+表から，理想的AESの予測得点に対応する真得点$T$と目的変数$Y$とのQWKと，信頼性係数から導出された理論的精度上限が，ノイズレベル$\sigma_{noise}$の全領域において高い整合性を示していることがわかる．
+このことは，本研究で導出した理論的精度上限が適切に理想的AESのQWKを再現できていることを示している．
+
+次に，三つの目標値を比較すると，全ての条件において，期待通りに$\hat{\kappa}_H \le \hat{\kappa}_{\mathrm{HL}}\le \hat{\kappa}_{\max}$が成立していることがわかる．
+この結果は，評価者間QWKがモデル性能の論理的な上限ではないことを強く支持している．
+
+また，目標値間の差分はノイズレベルが大きくなるほど大きくなる傾向も読み取れる．
+証明は省略するが，この現象は，評価者の採点誤差が大きいデータセットほど，人間評価者間QWKによる真の目標値の過小評価が顕著になることを意味している．
+
+\vspace{-3mm}
+\subsection{CCCによるQWK近似の精度検証}
+
+ここでは，CCCに基づくQWKの近似精度を評価する実験を行った．
+具体的には，\ref{sec:simulation_procedure}節と同じシミュレーション実験を，評価者のノイズレベル$\sigma_{noise}$を一様分布$U(0.1, 5)$からランダムサンプリングしながら100回繰り返し，それぞれの試行において，理想的なAESの予測得点に対応する真得点$T$と目的変数$Y$とのQWKを計算した．さらに，真得点$T$と目的変数$Y$の相関，およびそれぞれの得点の平均・分散を用いて，CCC近似によるQWKを求め，その差で表現される近似誤差を求めた．
+実験の結果，100試行分の近似誤差に基づいて計算した平均絶対誤差は0.005，最大絶対誤差でも0.011であり，近似の誤差は総じて非常に小さいことが示唆される．
+このことから，CCCのQWKによる近似は十分妥当であると結論づけられる．
+
+\vspace{-3mm}
+\section{実データによる検証}
+\label{sec:real_data}
+
+\begin{table}[t]
+\small
+\setlength{\tabcolsep}{4pt} 
+\centering
+\caption{ASAPデータセットに対する分析結果}
+\label{tab:asap_results}
+\begin{tabular}{cccccccc}
+\toprule
+\multirow{2}{*}{Prompt} & \multirow{2}{*}{$\hat{\kappa}_{\max}$} & \multirow{2}{*}{$\hat{\kappa}_{\mathrm{HL}}$} & \multirow{2}{*}{$\hat{\kappa}_{H}$} & \multicolumn{2}{c}{BERT} & NPCR \\ \cline{5-6}
+  &  &  & & QWK & Correl & (QWK) \\
+\midrule
+1 & 0.915 & 0.777 & 0.721 & 0.803 & 0.809 & 0.856 \\
+2 & 0.947 & 0.855 & 0.814 & 0.698 & 0.704 & 0.750 \\
+3 & 0.932 & 0.818 & 0.769 & 0.647 & 0.648 & 0.756 \\
+4 & 0.959 & 0.885 & 0.851 & 0.764 & 0.764 &  0.851 \\ 
+5 & 0.927 & 0.804 & 0.753 & 0.779 & 0.781 &  0.847 \\ 
+6 & 0.935 & 0.824 & 0.776 & 0.777 & 0.787 &  0.858 \\ 
+7 & 0.916 & 0.778 & 0.721 & 0.824 & 0.826 &  0.838 \\ 
+8 & 0.879 & 0.697 & 0.629 & 0.723 & 0.749 &  0.779 \\ 
+\midrule
+Avg. & 0.926  & 0.805 & 0.754 & 0.752 & 0.759 & 0.817 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\small
+\setlength{\tabcolsep}{3.2pt} 
+\centering
+\caption{ELLIPSEデータセットに対する分析結果}
+\label{tab:ellipse_results}
+\begin{tabular}{ccccccccccc}
+\toprule
+\multirow{2}{*}{Trait} & \multirow{2}{*}{$\hat{\kappa}_{\max}$} & \multirow{2}{*}{$\hat{\kappa}_{\mathrm{HL}}$} & \multirow{2}{*}{$\hat{\kappa}_{H}$} & \multicolumn{2}{c}{BERT} & \multicolumn{2}{c}{MTAA} \\ \cline{5-8}
+ &  &  & & QWK & Correl & QWK & Correl \\
+\midrule
+1 & 0.818 & 0.581 & 0.504 & 0.476 & 0.505 & 0.630 & 0.660 \\
+2 & 0.817 & 0.578 & 0.501 & 0.533 & 0.575 & 0.690 & 0.720 \\
+3 & 0.799 & 0.547 & 0.469 & 0.534 & 0.557 & 0.670 & 0.700 \\
+4 & 0.814 & 0.573 & 0.496 & 0.531 & 0.586 & 0.690 & 0.730 \\
+5 & 0.828 & 0.597 & 0.522 & 0.592 & 0.613 & 0.720 & 0.740 \\
+6 & 0.823 & 0.588 & 0.511 & 0.564 & 0.591 & 0.710 & 0.750 \\
+\midrule
+Avg. & 0.816 & 0.577 & 0.501 & 0.538 & 0.571 & 0.685 & 0.717 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+本章では，AES研究で用いられる2つのベンチマークデータセットに対して，それぞれの目標値といくつかのAESモデルの精度を算出して，比較する．
+
+本実験では，以下の2種類のデータセットを用いた．
+\begin{description}
+\setlength{\itemsep}{1pt}
+    \item[\textbf{ASAP (Automated Student Assessment Prize):}] 8つのエッセイ課題（Promptと呼ばれる）に対する採点済みエッセイのデータセットであり，各回答には2名の評価者の得点が与えられている．本実験では，Prompt 1，7，8では2名評価の合計点，それ以外では2名評価の平均点を目的変数として集計して使用した．
+    \item[\textbf{ELLIPSE-Corpus~\cite{ellipse_aied24}:}] 2名の評価者の得点が付与されたエッセイデータセットであり，評価はCohesion, Syntaxなどの6つの評価観点（Traitと呼ばれる）ごとに付与されている．本データセットは3911件の訓練データと2571件の評価データに予め分割されている．本実験では，2名の評価者の平均点を目的変数として集計して使用した．
+\end{description}
+
+本実験では，上記のそれぞれのデータセットについて，理論的精度上限（$\kappa_{\max}$），人間相当精度目標（$\kappa_{\mathrm{HL}}$），2名の評価者得点間QWK（$\kappa_{H}$）を求めた．
+さらに，これらの目標値に対するAESモデルの達成度を検証するために，標準的な設計のBERTベースのAESモデル\cite{uto-review2021}の精度も評価した．
+加えて，先端モデルとして，ASAPではNPCR（Neural Pairwise Contrastive Regression）~\cite{npcr2022}，ELLIPSEではMTAA（Multi-Task Automated Assessment）~\cite{ellipse_aied24}の論文値も確認した．
+
+表\ref{tab:asap_results}と表\ref{tab:ellipse_results}に結果を示す．
+なお，NPCRの論文では相関を報告していないため，QWKのみを掲載している．
+
+まず3つの目標値を比較すると，すべての条件で，理論通りに$\hat{\kappa}_H \le \hat{\kappa}_{\mathrm{HL}}\le \hat{\kappa}_{\max}$の不等式が成立していることが読み取れる．
+特に，人間評価者間でのQWKが低いELLIPSEデータセットでは，$\hat{\kappa}_{\max}$と$\hat{\kappa}_H$の乖離が大きくなっており，従来の目標値$\hat{\kappa}_H$が真の上限を著しく過小評価している可能性が読み取れる．
+
+次に，AESの精度を目標値に照らすと，AESの精度が$\hat{\kappa}_{H}$を超えているケースが散見することがわかる．
+ELLIPSEデータセットにおいては，平均で見ても，両モデルの性能が$\hat{\kappa}_{H}$を上回っている．
+これらのことから，評価者間QWKは実際に超えることが可能な，保守的な上限であることがわかる．
+
+一方で，いずれの条件においても，理論的精度上限$\hat{\kappa}_{\max}$に対しては，現状のモデルの性能が比較的大きく乖離しており，本質的な性能改善の余地は残されていることが読み取れる．
+また，人間相当精度目標$\hat{\kappa}_{\mathrm{HL}}$に対しては，BERTでもいくつかの条件で，NPCRとMTAAでは多くのケースで，同水準以上を達成している．
+以上から，現状のAESモデルは，回答の潜在的な真得点を安定的に復元できる性能には至っていないが，1名の人間評価者を代替できる程度の精度には到達していると理解できる．
+
+\vspace{-3mm}
+\section{おわりに}\label{sec:conclusion}
+
+本研究では，AESで使用されるデータセットにおける得点データの誤差成分の影響を，CTTの信頼性の概念に基づいて評価し，それを用いて，
+（1）理論的に到達可能なQWKの上限（$\kappa_{\max}$）と，（2）人間評価者相当の採点誤差を持つAESが到達可能なQWK値（$\kappa_{\mathrm{HL}}$）を導出するとともに，従来の経験的な目標値であった評価者間QWK（$\kappa_H$）が実際の上限を過小評価するものであることを理論的・実験的に示した．
+
+本研究は，従来は相対比較に留まりがちだったAES精度を，絶対的に解釈可能にする基準を与えるものであり，AESの研究と実用のいずれにおいても重要な知見を与えるものと考える．
+
+\vspace{-3mm}
+\bibliographystyle{junsrt}
+\bibliography{references}
+
+\vspace{-3mm}
+\subsection*{付録：証明}
+
+式\eqref{eq:rmax}の等式は以下の通り証明できる．
+\begin{align*}
+r_{\max} & = \text{Cor}(\hat{Y}, Y) = \text{Cor}(T, Y) =  \frac{\mathrm{Cov}(T,Y)}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} \\
+& = \frac{\mathrm{Cov}(T,T+\bar{\varepsilon})}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} 
+ = \frac{\sigma^2_T}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} = \sqrt{\rho_{Y}}
+\end{align*}
+ここで，$\text{Cor}(T, Y)$は$T$と$Y$の相関を表す．
+
+また，式\eqref{eq:r_humanlike}は以下の通り証明できる．
+\begin{equation*}
+\mathrm{Cor}(\tilde{X},Y)
+= \frac{\mathrm{Cov}(T+\eta,\,T+\bar{\varepsilon})}
+        {\sqrt{\mathrm{Var}(T+\eta)\,\mathrm{Var}(T+\bar{\varepsilon})}} = \sqrt{\rho_1\rho_Y}.
+\end{equation*}
+ここでは，$\rho_1={\sigma_T^2}/{(\sigma_T^2+\sigma^2_{\eta})}$，
+$\rho_Y={\sigma_T^2}/{(\sigma_T^2+\sigma_{\bar{\varepsilon}}^2)}$を用いた．また，$\mathrm{Var}(\cdot)$は引数の変数の分散を表す．
+
+次に，式\eqref{eq:rH_le_rmax}の証明を示す．
+まず，2名の評価者間における得点のピアソン相関は次式のように変形できる．
+\begin{align}
+    r_H & = \mathrm{Cor}(X_{\cdot 1}, X_{\cdot 2}) = \frac{\mathrm{Cov}(X_{\cdot 1},X_{\cdot 2})}
+            {\sqrt{\mathrm{Var}(X_{\cdot 1})\,\mathrm{Var}(X_{\cdot 2})}} \nonumber \\
+    & = \frac{\sigma_T^2}
+            {\sqrt{\bigl(\sigma_T^2+\mathrm{Var}(\varepsilon_{\cdot 1})\bigr)
+                   \bigl(\sigma_T^2+\mathrm{Var}(\varepsilon_{\cdot 2})\bigr)}}
+    \label{eq:rH_def}
+\end{align}
+一方で，2名平均の信頼性は，$Y=(X_{\cdot 1}+X_{\cdot 2})/2 = T + (\varepsilon_{\cdot 1}+\varepsilon_{\cdot 2})/2$ より，
+$\mathrm{Var}(Y) = \sigma_T^2 + (\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))/4$となることに注意すると，次式で書ける．
+\begin{equation}
+    \rho_Y = \frac{\sigma_T^2}{\sigma_Y^2}
+    = \frac{\sigma_T^2}
+           {\sigma_T^2 + {(\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))}/{4}}
+    \label{eq:rhoY_two_raters_general}
+\end{equation}
+
+ここで，$\rho_Y - r_H^2 \ge 0$は，
+\begin{equation*}
+    \frac{3}{4}\sigma_T^2(\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))+\mathrm{Var}(\varepsilon_{\cdot 1})\mathrm{Var}(\varepsilon_{\cdot 2}) \ge 0.
+\end{equation*}
+と変形できることから，$\rho_Y-r_H^2\ge0$，すなわち $r_H^2\le\rho_Y$ が成り立つ．よって$r_H \le \sqrt{\rho_Y} = r_{\max}$が成り立つ．
+
+次に，\ref{sec:human_qwk}節で示した$\kappa_H \lesssim \kappa_{\mathrm{HL}}\le \kappa_{\max}$を証明する．
+まず，$\rho_1\le 1$から$\sqrt{\rho_1 \rho_Y} \le \sqrt{\rho_Y}$が成立し，$\kappa_{\mathrm{HL}}\le \kappa_{\max}$が成り立つ．
+次に，$\mathrm{Var}(\varepsilon_{\cdot 1}) = \mathrm{Var}(\varepsilon_{\cdot 2}) = \sigma_{\varepsilon}^2$を仮定すると，式\eqref{eq:rH_def}から$r_H = {\sigma_T^2}/{(\sigma_T^2+\sigma_{\varepsilon}^2)} = \rho_1$
+が成立する．また，式\eqref{eq:kappaH_le_rH}より$\kappa_H \approx r_H\,F_H \le r_H = \rho_1$が成り立つ．ここで，$\sigma^2_{\bar{\varepsilon}} = \mathrm{Var}\left(\frac{1}{J}\sum_{j=1}^{J} \varepsilon_{ij}\right) \le \sigma^2_{{\varepsilon}}$であることを踏まえると，式\eqref{eq:reliability_def_Y}と式\eqref{eq:reliability_def_1}から$\rho_1 \le \rho_Y$が得られる．
+したがって，$\rho_1 \le \sqrt{\rho_1 \rho_Y}$が成立し，$\kappa_H \le \rho_1 \le \sqrt{\rho_1 \rho_Y} \approx \kappa_{\mathrm{HL}}$の成立が確認できる．
+
+
+\end{document}
+
