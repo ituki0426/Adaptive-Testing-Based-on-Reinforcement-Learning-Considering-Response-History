@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1532" height="1027" viewBox="0 0 1532 1027">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/>
+    </marker>
+    <style>
+      .frame { fill: #fff; stroke: #000; stroke-width: 3.2; }
+      .node { fill: #fff; stroke: #000; stroke-width: 3.2; }
+      .line { fill: none; stroke: #000; stroke-width: 3.2; marker-end: url(#arrow); }
+      .dash { fill: none; stroke: #000; stroke-width: 3.2; stroke-dasharray: 9 8; marker-end: url(#arrow); }
+      .text { font-family: "Times New Roman", Times, serif; fill: #000; text-anchor: middle; dominant-baseline: middle; }
+      .title { font-size: 52px; }
+      .large { font-size: 34px; }
+      .medium { font-size: 30px; }
+      .small { font-size: 25px; }
+      .tiny { font-size: 22px; }
+      .math { font-family: "Times New Roman", Times, serif; font-style: italic; }
+    </style>
+  </defs>
+
+  <rect x="20" y="10" width="1492" height="520" rx="72" ry="72" class="frame"/>
+  <rect x="20" y="560" width="1492" height="450" rx="62" ry="62" class="frame"/>
+
+  <text x="766" y="58" class="text title">Deep Recurrent Q-Network</text>
+
+  <!-- Upper training module -->
+  <rect x="170" y="162" width="285" height="145" rx="22" ry="22" class="node"/>
+  <text x="312" y="218" class="text large">Episode</text>
+  <text x="312" y="263" class="text large">Replay Memory</text>
+
+  <rect x="672" y="110" width="330" height="116" rx="22" ry="22" class="node"/>
+  <text x="837" y="145" class="text medium">Target Q-Network</text>
+  <text x="837" y="188" class="text medium">(Embedding + LSTM)</text>
+
+  <rect x="1260" y="162" width="210" height="145" rx="22" ry="22" class="node"/>
+  <text x="1365" y="218" class="text large">Loss</text>
+  <text x="1365" y="263" class="text large">Function</text>
+
+  <rect x="670" y="378" width="340" height="126" rx="22" ry="22" class="node"/>
+  <text x="840" y="419" class="text medium">Action-Value Q-Network</text>
+  <text x="840" y="462" class="text medium">(Embedding + LSTM)</text>
+
+  <text x="86" y="335" class="text small" text-anchor="start" dominant-baseline="auto">
+    <tspan x="55" dy="0">Episode τ = {(i_t, o_t, r_t)}_{t=1}^L</tspan>
+    <tspan x="55" dy="34">o_t ∈ {0,1}</tspan>
+    <tspan x="55" dy="34">r_t = I_{i_t}(θ)</tspan>
+  </text>
+
+  <!-- Dashed learning arrows -->
+  <path d="M 455 235 L 555 235 L 555 168 L 670 168" class="dash"/>
+  <text x="550" y="275" class="text medium">Mini-batch</text>
+  <text x="555" y="309" class="text tiny">(sequences)</text>
+
+  <path d="M 455 235 L 555 235 L 555 440 L 668 440" class="dash"/>
+
+  <path d="M 1002 188 L 1260 220" class="dash"/>
+  <text x="1124" y="219" class="text medium">Mini-batch</text>
+
+  <path d="M 1010 440 L 1215 440 L 1215 250 L 1260 250" class="dash"/>
+
+  <path d="M 1365 308 L 1365 405 L 1012 405" class="dash"/>
+  <text x="1150" y="382" class="text medium">Update Parameters</text>
+
+  <path d="M 840 378 L 840 228" class="dash"/>
+  <text x="746" y="325" class="text medium">Copy Parameters</text>
+
+  <path d="M 1005 371 C 1110 315 960 292 940 372" class="dash"/>
+  <text x="1088" y="320" class="text small">hidden state</text>
+  <text x="1088" y="352" class="text small">z_{t-1} → z_t</text>
+
+  <!-- Lower CAT loop -->
+  <ellipse cx="220" cy="670" rx="145" ry="75" class="node"/>
+  <text x="220" y="670" class="text medium">Response History</text>
+
+  <ellipse cx="765" cy="670" rx="155" ry="70" class="node"/>
+  <text x="765" y="635" class="text medium">Item Information</text>
+  <text x="765" y="672" class="text small">(Reward)</text>
+
+  <ellipse cx="1300" cy="670" rx="145" ry="75" class="node"/>
+  <text x="1300" y="670" class="text large">Item</text>
+
+  <rect x="930" y="835" width="290" height="115" rx="12" ry="12" class="node"/>
+  <text x="1075" y="876" class="text medium">Examinee</text>
+  <text x="1075" y="920" class="text medium">(Response Model)</text>
+
+  <ellipse cx="750" cy="890" rx="110" ry="55" class="node"/>
+  <text x="750" y="875" class="text medium">Response</text>
+  <text x="750" y="912" class="text small">o_t ∈ {0,1}</text>
+
+  <rect x="310" y="835" width="280" height="115" rx="12" ry="12" class="node"/>
+  <text x="450" y="876" class="text medium">History Update</text>
+  <text x="450" y="920" class="text small">append o_t</text>
+
+  <!-- Solid interaction arrows -->
+  <path d="M 220 595 L 220 510 L 668 440" class="line"/>
+  <path d="M 1010 440 L 1310 440 L 1310 595" class="line"/>
+  <text x="1138" y="432" class="text medium">ε-greedy</text>
+
+  <path d="M 1300 745 L 1300 890 L 1222 890" class="line"/>
+  <path d="M 930 890 L 862 890" class="line"/>
+  <path d="M 640 890 L 592 890" class="line"/>
+  <path d="M 310 890 L 220 890 L 220 748" class="line"/>
+
+  <path d="M 1190 670 L 922 670" class="line"/>
+  <path d="M 612 670 L 368 670" class="line"/>
+  <path d="M 765 598 L 765 535 L 312 535 L 312 309" class="dash"/>
+  <text x="512" y="524" class="text small">store reward and episode</text>
+
+  <!-- Small labels to clarify paper.md-consistent data flow -->
+  <text x="1015" y="641" class="text tiny">selected item</text>
+  <text x="515" y="641" class="text tiny">reward for replay</text>
+</svg>
