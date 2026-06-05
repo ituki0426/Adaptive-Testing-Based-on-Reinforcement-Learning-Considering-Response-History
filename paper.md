@@ -66,8 +66,10 @@ Wang et al.（2024）は、CAT の項目選択問題を MDP として定式化�
 
 - **状態**: 現在の推定特性値 $\hat{\theta}_l$
 - **行動**: 選択する項目 $i_l \in B_l$
-- **報酬**: 項目 $i_l$ のフィッシャー情報量 $I_{i_l}(\hat{\theta}_l)$
+- **報酬**: 項目 $i_l$ のフィッシャー情報量 $I_{i_l}(\theta)$（シミュレーション学習時は真の特性値 $\theta$ で計算）[^reward]
 - **環境**: 受検者の回答生成（IRT モデル）と特性値の推定（MLE）
+
+[^reward]: 元論文 Wang et al.（2024）は報酬を推定特性値 $\hat{\theta}_l$ で計算する（式13）。本研究のシミュレーション実験では受検者の真の特性値が既知であるため、より安定した報酬信号として真の $\theta$ を用いた。真の特性値が得られない実データでの学習では、代わりに推定特性値 $\hat{\theta}_l$ を報酬の計算に用いる。この扱いは DQN・DRQN の双方で共通である。
 
 ![MDP 枠組みにおける RL ベースの項目選択戦略のフローチャート](img/Flowchart%20of%20the%20RL-based%20item%20selection%20strategy%20in%20the%20MDP%20framework.png)
 
@@ -94,7 +96,7 @@ Wang et al.（2024）の MDP 定式化では、状態を推定特性値 $\hat{\t
 - **真の状態**: 受検者の真の特性値 $\theta$（エージェントには観測不可能）
 - **観測**: 各項目への回答 $o_l \in \{0, 1\}$（0: 誤答、1: 正答）
 - **行動**: 選択する項目 $i_l \in B_l$
-- **報酬**: フィッシャー情報量 $I_{i_l}(\theta)$（学習時は真の $\theta$ で計算）
+- **報酬**: フィッシャー情報量 $I_{i_l}(\theta)$（シミュレーション学習時は真の $\theta$ で計算[^reward]）
 
 POMDP において、エージェントは観測履歴 $(o_1, o_2, \ldots, o_{l-1})$ から真の状態に関する信念（belief）を構築し、行動を選択する。
 
@@ -108,9 +110,9 @@ POMDP を解くため、Hausknecht & Stone（2015）が提案した Deep Recurre
 2. **LSTM 層**: 埋め込み系列を逐次処理し、隠れ状態を更新する（隠れ層サイズ: 64）
 3. **全結合出力層**: LSTM の出力からアイテムバンク内の全項目に対する Q 値を出力する
 
-![DRQN のアーキテクチャ](img/ChatGPT%20Image%202026年6月3日%2000_57_09.png)
+![DRQN のアーキテクチャ](img/The%20architecture%20of%20Q-Network%20in%20DRQN.png)
 
-**図5**: DRQN のアーキテクチャ。回答系列 $(r_1, r_2, \ldots, r_T)$ を Embedding 層で埋め込み表現に変換し、LSTM で逐次処理する。LSTM の出力を全結合層に通し、各項目の Q 値 $Q(s_T, i)$ を出力する。
+**図4**: DRQN のアーキテクチャ。回答系列 $(r_1, r_2, \ldots, r_T)$ を Embedding 層で埋め込み表現に変換し、LSTM で逐次処理する。LSTM の出力を全結合層に通し、各項目の Q 値 $Q(s_T, i)$ を出力する。
 
 決定ステップ $l$ において、DRQN は開始トークンとこれまでの回答系列 $(\text{START}, o_1, o_2, \ldots, o_{l-1})$ を入力として受け取り、LSTM が内部状態を逐次更新する。これにより、推定特性値というスカラー情報に集約せずに、回答パターンの時系列的な特徴を直接利用して Q 値を推定する。
 
@@ -125,7 +127,13 @@ DQN と DRQN の本質的な違いは以下の通りである：
 
 ### 3.3 学習アルゴリズム
 
-DRQN の学習は DQN と同様に、ε-greedy 法による方策選択、ターゲットネットワーク、および経験再生の3つの手法を用いる。ただし、経験再生の単位はステップごとの遷移ではなく、1エピソード（1人の受検者のテスト全体）とする。これは、LSTM の隠れ状態がエピソード内の系列に依存するためである。
+DRQN の学習は DQN と同様に、ε-greedy 法による方策選択、ターゲットネットワーク、および経験再生（experience replay）の3つの手法を用いる（Mnih et al., 2013, 2015）。
+
+**ターゲットネットワーク**は、行動価値ネットワーク $Q_{\text{action}}$ と同一構造をもつ別のネットワーク $Q_{\text{target}}$ であり、損失計算における予測対象（ターゲット Q 値）の生成に用いる。学習対象の $Q_{\text{action}}$ とは別に固定的な $Q_{\text{target}}$ を用い、$\tau$ 回の更新ごとに $Q_{\text{action}}$ のパラメータを $Q_{\text{target}}$ に同期することで、Q 関数の収束をより安定させる。
+
+**経験再生**は、CAT 環境で生成された項目選択データをリプレイメモリ $D$（容量 $N_D$）に蓄積し、そこからミニバッチを無作為抽出して $Q_{\text{action}}$ を更新する手法である。連続する時刻のデータがもつ時間的相関を断ち切り、過去の経験を繰り返し活用することで、学習を安定化させる。
+
+ただし、Wang et al.（2024）の DQN では経験再生の単位がステップごとの遷移 $\{\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1}\}$ であるのに対し、本研究の DRQN では**経験再生の単位を1エピソード（1人の受検者のテスト全体）とする**。これは、LSTM の隠れ状態がエピソード内の回答系列に依存しており、系列の途中の単一遷移だけを抜き出すと隠れ状態を正しく再現できないためである。リプレイメモリに保存したエピソードを時系列順に処理し、LSTM の隠れ状態はエピソード先頭でゼロ初期化する。
 
 学習の手順は以下の通りである：
 
@@ -141,7 +149,7 @@ $$\mathcal{L} = \left[ r_l + \gamma \cdot \max_{i \in B_{l+1}} Q_{\text{target}}
 
 ![DQN ベースの項目選択戦略の学習過程のフローチャート](img/Flowchart%20of%20the%20training%20process%20for%20the%20DQN-based%20item%20selection%20strategy.png)
 
-**図4**: DQN ベースの項目選択戦略の学習過程のフローチャート（Wang et al., 2024, Fig.2 を基に作成）。下部の CAT 環境ループ（項目選択→受検者の回答→特性値推定）で生成されるエピソードデータ $(\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1})$ をリプレイメモリに蓄積する。上部の Deep Q-Network では、リプレイメモリからミニバッチをサンプリングし、ターゲット Q-Network の出力と Action-Value Q-Network の出力の損失を計算してパラメータを更新する。ターゲット Q-Network のパラメータは定期的に Action-Value Q-Network から同期される。DRQN の学習過程も同様の構造を持つが、状態表現として推定特性値の代わりに回答履歴を用い、経験再生の単位がステップからエピソードに変更される点が異なる。
+**図5**: DQN ベースの項目選択戦略の学習過程のフローチャート（Wang et al., 2024, Fig.2 を基に作成）。下部の CAT 環境ループ（項目選択→受検者の回答→特性値推定）で生成されるエピソードデータ $(\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1})$ をリプレイメモリに蓄積する。上部の Deep Q-Network では、リプレイメモリからミニバッチをサンプリングし、ターゲット Q-Network の出力と Action-Value Q-Network の出力の損失を計算してパラメータを更新する。ターゲット Q-Network のパラメータは定期的に Action-Value Q-Network から同期される。DRQN の学習過程も同様の構造を持つが、状態表現として推定特性値の代わりに回答履歴を用い、経験再生の単位がステップからエピソードに変更される点が異なる。
 
 ## 4. シミュレーション実験
 
@@ -248,12 +256,25 @@ DRQN は40問選択時点において RMSE = 0.200 を達成し、MFI（RMSE = 0
 ## 参考文献
 
 - Chang, H.-H., & Ying, Z. (1996). A global information approach to computerized adaptive testing. *Applied Psychological Measurement*, 20(3), 213–229.
+- Chen, Y., Li, X., Liu, J., & Ying, Z. (2018). Recommendation system for adaptive learning. *Applied Psychological Measurement*, 42(1), 24–41.
 - Dodd, B. G. (1990). The effect of item selection procedure and stepsize on computerized adaptive attitude measurement using the rating scale model. *Applied Psychological Measurement*, 14(4), 355–366.
 - Frey, A. (2023). Computerized adaptive testing. In R. J. Mislevy & H. Jiao (Eds.), *The Oxford handbook of educational assessment*. Oxford University Press.
+- Ghosh, A., & Lan, A. (2021). BOBCAT: Bilevel optimization-based computerized adaptive testing. *arXiv preprint arXiv:2108.07386*.
+- Han, R., Chen, K., & Tan, C. (2020). Curiosity-driven recommendation strategy for adaptive learning via deep reinforcement learning. *British Journal of Mathematical and Statistical Psychology*, 73(3), 522–540.
 - Hausknecht, M., & Stone, P. (2015). Deep recurrent Q-learning for partially observable MDPs. *arXiv preprint arXiv:1507.06527*.
+- Li, X., Xu, H., Zhang, J., & Chang, H.-H. (2021). Optimal hierarchical learning path design with reinforcement learning. *Applied Psychological Measurement*, 45(1), 54–70.
+- Li, X., Xu, H., Zhang, J., & Chang, H.-H. (2023). Deep reinforcement learning for adaptive learning systems. *Journal of Educational and Behavioral Statistics*, 48(2), 220–243.
 - Lord, F. M. (1980). *Applications of item response theory to practical testing problems*. Erlbaum.
 - Magis, D., & Barrada, J. R. (2017). Computerized adaptive testing with R: Recent updates of the package catR. *Journal of Statistical Software*, 76(1), 1–19.
+- Mnih, V., Kavukcuoglu, K., Silver, D., et al. (2013). Playing Atari with deep reinforcement learning. *arXiv preprint arXiv:1312.5602*.
 - Mnih, V., Kavukcuoglu, K., Silver, D., et al. (2015). Human-level control through deep reinforcement learning. *Nature*, 518(7540), 529–533.
+- Nurakhmetov, D. (2019). Reinforcement learning applied to adaptive classification testing. In B. P. Veldkamp & C. Sluijter (Eds.), *Theoretical and practical advances in computer-based educational measurement* (pp. 325–336). Springer.
+- Shin, J., & Bulut, O. (2022). Building an intelligent recommendation system for personalized test scheduling in computerized assessments: A reinforcement learning approach. *Behavior Research Methods*, 54(1), 216–232.
+- Silver, D., Huang, A., Maddison, C. J., et al. (2016). Mastering the game of Go with deep neural networks and tree search. *Nature*, 529(7587), 484–489.
+- Silver, D., Schrittwieser, J., Simonyan, K., et al. (2017). Mastering the game of Go without human knowledge. *Nature*, 550(7676), 354–359.
+- Sutton, R. S., & Barto, A. G. (2018). *Reinforcement learning: An introduction* (2nd ed.). MIT Press.
+- Tan, C., Han, R., Ye, R., & Chen, K. (2020). Adaptive learning recommendation strategy based on deep Q-learning. *Applied Psychological Measurement*, 44(4), 251–266.
+- Tang, X., Chen, Y., Li, X., Liu, J., & Ying, Z. (2019). A reinforcement learning approach to personalized learning recommendation systems. *British Journal of Mathematical and Statistical Psychology*, 72(1), 108–135.
 - Veerkamp, W. J. J., & Berger, M. P. F. (1997). Some new item selection criteria for adaptive testing. *Journal of Educational and Behavioral Statistics*, 22(2), 203–226.
 - Wainer, H., et al. (2000). *Computerized adaptive testing: A primer* (2nd ed.). Erlbaum.
 - Wang, P., Liu, H., & Xu, M. (2024). An adaptive testing item selection strategy via a deep reinforcement learning approach. *Behavior Research Methods*, 56, 8695–8714.

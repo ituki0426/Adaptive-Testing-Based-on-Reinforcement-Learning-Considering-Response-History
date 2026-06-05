@@ -5,7 +5,6 @@
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{bm}
-\usepackage{siunitx}
 \usepackage{booktabs}
 \usepackage{multirow}
 
@@ -14,430 +13,474 @@
 \setlength{\belowcaptionskip}{0pt}
 \renewcommand{\baselinestretch}{0.95}
 
+\newcommand{\argmax}{\mathop{\rm argmax}\limits}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
-% 和文タイトル
-\title{記述回答自動採点は人間採点を超えたのか：\\-- テスト理論に基づく到達可能精度の上限推定 --}
+\title{回答履歴を考慮した強化学習に基づく適応型テスト}
+\etitle{Adaptive Testing Based on Reinforcement Learning Considering Response History}
 
-% 英文タイトル
-\etitle{Has Automated Essay Scoring Outperformed Human Raters? \\
--- An Achievable Accuracy Ceiling Based on Test Theory --} 
+\author{柴沼 厳 \ \ 宇都 雅輝}
 
-\author{宇都 雅輝%
-	\thanks{連絡先：電気通信大学大学院情報理工学研究科 \newline%
-		　　　　　　〒182-8585 東京都調布市調布ヶ丘1-5-1 \newline%
-		　　　　　　E-mail: uto@ai.lab.uec.ac.jp}}
-
-% 所属
 \affiliation{%
-	電気通信大学\\ 
+	電気通信大学\\
 	The University of Electro-Communications}
 
 \abstract{
-Automated essay scoring (AES) is commonly evaluated on public benchmarks using quadratic weighted kappa (QWK). Because benchmark labels are assigned by human raters and inevitably contain measurement error, it remains unclear both what QWK is theoretically attainable and what level is practically sufficient for deployment. We derive two dataset-specific QWK targets based on the reliability concept in classical test theory, which can be estimated from standard two-rater benchmarks without additional annotation. The first is the theoretical ceiling: the maximum QWK that an ideal AES model, which perfectly predicts latent true scores, can achieve against noisy labels. The second is the human-like ceiling: the QWK attainable by an AES model with human-level scoring error, providing a practical target when AES is intended to replace a single human rater. We further show that human–human QWK, often used as a ceiling reference, can underestimate the true ceiling. 
+コンピュータ適応型テスト（Computerized Adaptive Testing: CAT）における項目選択は，受検者の特性値を効率的に推定するための中核的な過程である．近年，深層強化学習を用いた項目選択戦略として，Deep Q-Network（DQN）に基づく手法が提案され，従来の情報量基準手法を上回る推定精度が報告されている．しかし，DQN に基づく手法では，状態として現在推定されている特性値のみを用いるため，受検者のこれまでの回答パターンに含まれる情報を十分に活用できていない．本研究では，IRT に基づく CAT を部分観測マルコフ決定過程（POMDP）として再定式化し，受検者の回答履歴を状態として利用する Deep Recurrent Q-Network（DRQN）に基づく項目選択戦略を提案する．3パラメータロジスティックモデル（3PLM）に基づくシミュレーション実験の結果，40問選択時点において，提案手法（DRQN）は RMSE = 0.200 を達成し，MFI（RMSE = 0.342）および DQN（RMSE = 0.254）を上回る推定精度を示した．
 }
 
 \maketitle
 \thispagestyle{empty}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{はじめに}
 
-\section{はじめに}\label{sec:intro}
+コンピュータ適応型テスト（CAT）は，スマート・テスティングにおいて広く用いられる手法であり，心理・教育測定における主要な研究テーマでもある~\cite{zhang2016}．紙筆式テストのような非適応型の形式と比べ，CAT はより少ない項目数で受検者の真の特性値をより正確に推定できる．これは，受検者の反応に加え，内容バランスや露出制御といった制約も考慮しつつ，統計的に最も情報量の高い項目群を提示することで達成される~\cite{weiss1982,wainer2000,frey2023}．
 
-記述回答自動採点（Automated Essay Scoring; AES）は，人工知能の教育応用に関わる主要な研究課題の一つとして長年注目を集めてきた~\cite{uto-review2021}．AES研究の中心的な目標の一つは採点精度の向上であり，その精度比較は，公開ベンチマークデータセットを用いてQWK（Quadratic Weighted Kappa）を主たる評価指標として行われてきた~\cite{uto-review2021}．
+効率的な測定を実現する中核過程である項目選択は，CAT における重要な研究焦点である．従来の項目選択戦略の多くは，項目反応理論（Item Response Theory: IRT）の枠組みの下で提案されている~\cite{vanderlinden2016}．最も広く使われる方法は，フィッシャー情報量を最大化する項目を選ぶ最大フィッシャー情報量法（Maximum Fisher Information: MFI）である~\cite{lord1980}．MFI は推定された特性値の漸近分散の逆数を最大化するという明快な原理に基づくが，推定特性値が真の特性値から大きく乖離している場合には，最も情報量の高い項目を選択できないという問題がある~\cite{chang1996}．この問題に対処するため，尤度で重み付けしたフィッシャー情報量（FIWL）~\cite{veerkamp1997} や，尤度重み付き Kullback-Leibler 情報量（KLP）~\cite{chang1996} などの代替戦略が提案されてきた．
 
-他方で，広く利用されるベンチマークデータセットであっても，必ずしも信頼性の高い得点ラベルが付与されているとは限らない．
-一般にデータセット中の各回答文に対する得点データは，複数名の人間評価者（アノテータ）によって付与されるが，事前に訓練を受けた評価者であっても，疲労や誤解，不注意，評価基準の曖昧さなどの意図しない要因によって採点に誤差が混入しうる~\cite{uto2022learning}．
-データセット中の得点データに一定の誤差が想定される場合，仮に真の得点を完全に予測できる理想的なAESが実現できても，その予測得点とデータセット中の実得点との一致度は最大値（QWKであれば1）には到達しない．
+しかし，これらの情報量基準に基づく項目選択戦略には，根本的な限界がある．第一に，従来の戦略の多くは全体最適ではなく局所最適な選択を行う．ほとんどの戦略は次の1項目に関する情報のみを考慮するため，さらに数項目先まで見越して得られる潜在的情報を取り込むことが難しい．第二に，従来の戦略は他の受検者の受検記録から情報を掘り起こして効率を高めることができない．過去の受検記録から学習できる柔軟な枠組みに基づく選択戦略であれば，特性値推定の変化の軌跡や，将来得られるテスト情報を予測できる可能性がある．
 
-これまでのAES研究では，データセット中のラベルノイズの多寡の分析やその影響を軽減する方法論などはしばしば研究されてきたが~\cite{uto2022learning}，得点ラベルの信頼性を考慮した予測精度の到達上限に関する議論は十分になされてこなかった．
-この点が不明瞭なままで精度比較が行われると，精度の改善余地の見積りが曖昧になり，非本質的な精度向上の追及や性能改善の拡大解釈などを引き起こしうる．
-また，AESの本来の目標である実運用場面では，精度の微小な差よりも「その精度が人間評価者の代替として十分か」といった，精度値の絶対的な意味解釈が重要となることが多い．
+これらの限界に対処する有望なアプローチが強化学習（Reinforcement Learning: RL）である~\cite{sutton2018}．深層学習と組み合わせた深層強化学習は，さまざまな先端領域で従来手法や人間の能力を上回る成果を示してきた~\cite{silver2016,silver2017}．近年，RL は適応学習システムにおける教材推薦など，教育測定における長期的かつ適応的な目的をもつ問題の解決に適合し強力であることが示されている~\cite{chen2018,han2020,li2021,li2023,tan2020,tang2019}．CAT においても，分類型 CAT に対する DRL ベースの選択戦略~\cite{nurakhmetov2019} や，二段階最適化に基づく枠組み~\cite{ghosh2021}，形成的評価への適用~\cite{shin2022} など，RL の導入が試みられている．
 
-そこで本研究では，個々の回答に2名の人間評価者が得点付けして作成されたデータセットを想定し，古典的テスト理論（Classical Test Theory; CTT）に基づいて算出される得点ラベルの信頼性をもとに，AES研究で使用される最も主要な指標であるQWKに対して以下の二つの目標値を提案する．
-\begin{enumerate}
-\setlength{\itemsep}{1pt}
-\item {\bf 理論的精度上限（Theoretical ceiling）：}各回答の真の得点を完全に予測できる理想的なAESであっても得点データの信頼性の影響によって越えられないQWK値であり，AES研究の精度追求の目標値を与える．
-\item {\bf 人間相当精度目標（Human-like ceiling）：}人間評価者と同程度の採点誤差をもつAESが到達可能なQWK値であり，人間評価者の代替としてAESを使用する想定における現実的な目標値を与える．
-\end{enumerate}
-さらに本研究では，従来研究でしばしば一つの目標値として利用されてきた「人間評価者間のQWK」が，真の精度上限を過小評価した保守的な目標値であることも証明する．これにより，経験的に採用されてきた従来の達成目標に関する誤解を是正する．
+しかし，CAT への RL 導入に関する既存研究にはいくつかのギャップが残る．第一に，3PLM のような最も一般的な IRT モデルに基づく CAT について，RL 枠組みの定義や選択戦略の提案がなされていない．第二に，既存研究で多く用いられるアクター・クリティック法は大量の学習データを要する．第三に，RL ベースの戦略が長期的情報を考慮することで測定精度を改善できるかどうか，従来の IRT ベース戦略との体系的な比較が不足している．
 
-本研究は，データセットごとのAES精度を，相対比較に頼らずに絶対的に解釈する理論を与えるものであり，AES研究の目標を再定義するとともに，実運用への橋渡しも担う重要な理論研究と解釈できる．
+これらのギャップに対し，Wang ら~\cite{wang2024} は CAT の項目選択問題をマルコフ決定過程（MDP）として定式化し，DQN を用いて Q 関数を近似する手法を提案した．この手法は，現在の項目だけでなく将来のテスト全体で得られる情報量の期待値を最大化するように項目を選択するため，局所最適に陥りやすい従来手法の課題を緩和する．シミュレーションおよび実データを用いた実験において，DQN は MFI をはじめとする従来手法より低い RMSE と MAE を達成している．
 
-\vspace{-3mm}
-\section{タスク設定} \label{sec:assumption}
+しかし，Wang らの DQN に基づく手法には重要な制約がある．DQN の Q-Network は，入力として現在推定されている特性値 $\hat{\theta}_l$ のみを受け取る．すなわち，受検者がこれまでにどの項目にどう回答したかという履歴情報は，特性値の推定値に集約された形でしか利用されない．本研究ではこの課題に対し，IRT に基づく CAT を部分観測マルコフ決定過程（POMDP）として再定式化し，その解法として Hausknecht と Stone~\cite{hausknecht2015} が提案した Deep Recurrent Q-Network（DRQN）を CAT に適用する．
 
-AESのベンチマークデータセットでは，各回答に対して複数の人間評価者（アノテータ）が与えた得点の平均または合計を目的変数として採用する場合が多い．
-本研究では，この状況を想定し，CTTに基づく信頼性の概念に基づいて目標値を導出する．
-なお，本研究では設定の一般性と単純さを優先し，回答あたりの評価者数が$2$名の場合に焦点化するが，本稿の内容は$3$名以上への一般化も可能である．
+\section{タスク設定}
 
-本研究では，CTTの一般的な仮定に従い，評価者$j$が回答$i$に対して与える得点$X_{ij}$が，回答$i$が持つ潜在的な真の得点にランダムな誤差が加算されて観測されると考え，以下の線形モデルを仮定する．
+\subsection{項目反応モデル}
+
+本研究では，IRT において広く用いられている二値反応モデルの一つである3パラメータロジスティックモデル（3PLM）を用いる．3PLM における項目 $i$ への正答確率は次式で与えられる．
 \begin{equation}
-X_{ij} = T_i + \varepsilon_{ij}
-\label{eq:ctt_model}
+P_i(\theta) = c_i + \frac{1 - c_i}{1 + \exp[-a_i(\theta - b_i)]}
 \end{equation}
-ここで，$T_i$は回答$i$の潜在的な真の得点を表し，$\varepsilon_{ij}$は誤差を表す．
-誤差項については，標準的なCTTの仮定として，$\mathbb{E}[\varepsilon_{ij}] = 0$，$\mathrm{Cov}(T_i, \varepsilon_{ij}) = 0$，$\mathrm{Cov}(\varepsilon_{ij}, \varepsilon_{ij'}) = 0$（$j \neq j'$）をおく．ただし，$\mathbb{E}[\cdot]$は期待値を，$\mathrm{Cov}(\cdot,\cdot)$は引数として与える2変数間の共分散を表す．
+ここで，$\theta$ は受検者の特性値，$a_i$ は識別力パラメータ，$b_i$ は困難度パラメータ，$c_i$ は疑似推測パラメータである．
 
-また，AESの目的変数が，$J$人（本研究では$J=2$）の評価者の観測得点の平均として次式で与えられるとする．
+\subsection{CAT の構成要素}
+
+CAT は，アイテムバンク，テストの開始，特性値の推定方法，項目選択戦略，制約管理，テストの終了といった構成要素から成る~\cite{weiss1984,frey2023}．本研究はこのうち項目選択戦略に焦点を当て，他の構成要素には従来の IRT に基づく手法を用いる．
+
+特性値の推定には最尤推定法（MLE）を用い，推定範囲を $[-4, 4]$ とする．テスト開始時の初期特性値は $[-0.5, 0.5]$ の一様分布から無作為に生成する．全回答が正答または全回答が誤答の場合は，Dodd の方法~\cite{dodd1990} に従い，$\hat{\theta}_{l+1} = \hat{\theta}_l + (b_{\max} - \hat{\theta}_l) / 2$（全正答時）または $\hat{\theta}_{l+1} = \hat{\theta}_l + (b_{\min} - \hat{\theta}_l) / 2$（全誤答時）として特性値を更新する．
+
+\subsection{情報量基準に基づく項目選択戦略}
+
+\paragraph{MFI}
+フィッシャー情報量を最大化する項目を選択する．項目 $i$ のフィッシャー情報量は次式で定義される．
 \begin{equation}
-Y_{i} = \frac{1}{J} \sum_{j=1}^{J} X_{ij}
-\label{eq:mean_score}
+I_i(\theta) =
+\frac{a_i^2 (1 - c_i)}
+{[c_i + \exp(a_i(\theta - b_i))][1 + \exp(-a_i(\theta - b_i))]^2}
 \end{equation}
-なお，本稿では観測得点の平均を考えて議論を進めるが，$Y_{i}$が$J$人の評価者得点の合計として与えられる場合でも，以降の議論は全て同様に適用できる．
+項目選択規則は $i_l = \argmax_{i \in B_l} I_i(\hat{\theta}_l)$ である．ここで $B_l$ は $l$ 番目の項目選択時点で未出題の項目集合である．
 
-ここで，AESの目標が，$Y$を目的変数とする訓練データを用いて，各回答の真の得点$T$を予測できるモデルを構築することであると考える．
-この目標は統計的学習の観点から次のように正当化される．
-まず，標準的なAESモデルは平均二乗誤差（Mean Squared Error; MSE）の最小化に基づいて学習されるが，これは入力特徴量$\bm{Z}$に対する条件付き期待値$\hat{Y} = \mathbb{E}[Y \mid \bm{Z}]$の推定と等価である．
-また，上述のCTTの仮定の下で，観測得点の期待値は真の得点に一致する（すなわち，$\mathbb{E}[Y \mid T] = T$）．
-したがって，入力$\bm{Z}$が$T$を十分に説明する場合，観測得点$Y$に対する回帰モデルの学習は，実質的に真の得点$T$の予測モデルの学習と等価とみなせる．
+\paragraph{FIWL}
+尤度で重み付けしたフィッシャー情報量を最大化する．項目選択規則は次式で定義される．
+\begin{equation}
+i_l = \argmax_{i \in B_l} \int_{-\infty}^{\infty} I_i(\theta) L(\theta)\, d\theta
+\end{equation}
+ここで $L(\theta)$ は，それまでの回答パターンに基づく尤度関数である．FIWL は推定特性値の不確実性を考慮するため，テスト序盤における MFI の弱点を補う．実装では，最初の項目は MFI で選択し，2問目以降に FIWL を適用する．
 
-ここで，真の得点$T$を誤差なく予測できる理想的なAESモデルが構築できたと仮定し，そのモデルの性能評価を評価データ上の目的変数$Y$との比較を通して行うとする．
-精度評価の指標にQWKを利用するとき，到達可能なQWKの上限は，目的変数$Y$に内在する誤差成分の大きさに制約されることになる．
-本研究の発想は，この誤差成分の大きさをCTTの信頼性の考え方で推定した上で，その誤差の下で到達可能なQWK値を導出しようというものである．
+\begin{figure}[t]
+\centering
+\includegraphics[width=.92\columnwidth]{img/irt_flow.png}
+\caption{IRT ベースの項目選択戦略のフローチャート．情報量基準に基づく戦略では，推定特性値から項目情報量を計算し，最も情報量の高い項目を選択する．}
+\label{fig:irt_flow}
+\end{figure}
 
-\vspace{-2mm}
+\subsection{MDP に基づく定式化（DQN）}
+
+Wang ら~\cite{wang2024} は，CAT の項目選択問題を MDP として定式化した．その構成要素は以下の通りである．
+\begin{itemize}
+\item 状態：現在の推定特性値 $\hat{\theta}_l$
+\item 行動：選択する項目 $i_l \in B_l$
+\item 報酬：項目 $i_l$ のフィッシャー情報量 $I_{i_l}(\theta)$\footnote{Wang らは報酬を推定特性値 $\hat{\theta}_l$ で計算しているが，本研究のシミュレーション実験では真の特性値 $\theta$ が既知であるため，より安定した報酬信号として真の $\theta$ を用いた．}
+\item 環境：受検者の回答生成（IRT モデル）と特性値の推定（MLE）
+\end{itemize}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=.94\columnwidth]{img/mdp_flow.png}
+\caption{MDP 枠組みにおける RL ベースの項目選択戦略のフローチャート．項目選択の基準が情報量の直接最大化から Q 値の最大化に置き換わり，将来のテスト全体を通じた累積報酬を考慮できる．}
+\label{fig:mdp_flow}
+\end{figure}
+
+Q 関数は，現在の状態と行動の組に対して，テスト終了までに得られる割引累積報酬の期待値を表す．
+\begin{equation}
+Q^\pi(\hat{\theta}_l, i_l)
+= \mathbb{E}_\pi \left[
+I_{i_l}(\hat{\theta}_l)
++ \sum_{k=l+1}^{L} \gamma^{k-l} I_{i_k}(\hat{\theta}_k)
+\mid \hat{\theta}_l, i_l
+\right]
+\end{equation}
+ここで $\gamma$ は割引率，$L$ はテスト長である．DQN は Q-Network $Q(\hat{\theta}_l, i; \bm{\theta})$ を用いてこの Q 関数を近似する．
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=.88\columnwidth]{img/dqn_arch.png}
+\caption{DQN における Q-Network のアーキテクチャ．入力は推定特性値 $\hat{\theta}_l$ であり，2層の全結合ネットワークを経て各項目の Q 値を出力する．}
+\label{fig:dqn_arch}
+\end{figure}
+
 \section{提案手法}
 
-本章では，上記の考え方に基づいて二つの目標値を導出する．\ref{sec:qwk_ub}節では理論的精度上限を導出し，\ref{sec:human_like_ceiling}節では人間相当精度目標を導出する．さらに，\ref{sec:human_qwk}節で人間評価者間のQWKの解釈を明らかにする．
+\subsection{POMDP としての再定式化}
 
-\vspace{-2mm}
-\subsection{理論的精度上限の導出}\label{sec:qwk_ub}
+Wang らの MDP 定式化では，状態を推定特性値 $\hat{\theta}_l$ とする．しかし，推定特性値は真の特性値 $\theta$ の不完全な推定であり，特にテスト序盤では大きな誤差を含む．つまり，エージェントは真の状態を直接観測できず，観測される回答の正誤を通じて間接的に推論するしかない．これは部分観測マルコフ決定過程（POMDP）の構造そのものである．
 
-上述の通り，QWKの理論的精度上限は，目的変数$Y$が持つ誤差成分の大きさに依存する．
-CTTでは，観測値に内包する誤差成分の大きさを信頼性と呼ばれる概念で定義する．
-式\eqref{eq:ctt_model}と式\eqref{eq:mean_score}より，目的変数は
-\begin{equation}
-Y_i  = \frac{1}{J}\sum_{j=1}^J X_{ij} = T_i + \bar{\varepsilon}_i, \quad \bar{\varepsilon}_i = \frac{1}{J}\sum_{j=1}^J \varepsilon_{ij}
-\label{eq:Y_decomp}
-\end{equation}
-と分解できる．このとき，CTTにおける目的変数$Y$の信頼性は次式で定義される．
-\begin{equation}
-\rho_{Y} = \frac{\sigma^2_{T}}{\sigma^2_{Y}} = \frac{\sigma^2_{T}}{\sigma^2_{T} + \sigma^2_{\bar{\varepsilon}}} \label{eq:reliability_def_Y}
-\end{equation}
-ここで，$\sigma^2_{Y}$，$\sigma^2_{T}$，$\sigma^2_{\bar{\varepsilon}}$はそれぞれ目的変数$Y$，真の得点$T$，平均誤差$\bar{\varepsilon}$の分散を表す．
-この式は，誤差分散$\sigma^2_{\bar{\varepsilon}}$が$0$に近づくほど信頼性が$1$に近づくことを意味する．
+そこで本研究では，CAT の項目選択問題を次のような POMDP として再定式化する．
+\begin{itemize}
+\item 真の状態：受検者の真の特性値 $\theta$
+\item 観測：各項目への回答 $o_l \in \{0,1\}$
+\item 行動：選択する項目 $i_l \in B_l$
+\item 報酬：フィッシャー情報量 $I_{i_l}(\theta)$
+\end{itemize}
+POMDP において，エージェントは観測履歴 $h_l=(o_1,\ldots,o_{l-1})$ から真の状態に関する信念を構築し，行動を選択する．
 
-本研究では，この信頼性$\rho_{Y}$に基づいてQWKの理論的上限を導出する．
-しかし，真得点の分散$\sigma^2_{T}$は直接観測できないため，上式の定義通りに信頼性を計算することはできない．
-そこで本研究では，観測可能なデータのみから$\rho_{Y}$の推定量$\hat{\rho}_{Y}$を求めて利用する．
+\subsection{DRQN による Q 関数の近似}
 
-目的変数$Y$の信頼性$\rho_{Y}$の推定法は，データセット作成時の評価者割当デザインによって異なる．
-本研究では，一定数の評価者集合から，各回答に無作為に$J$人を割り当てて採点する標準的なデザインを想定する．
-この場合，信頼性の推定値$\hat{\rho}_{Y}$は，一元配置ランダム効果・平均評定に基づく級内相関係数（ICC: Intraclass Correlation Coefficient）で求められる．
+POMDP を解くため，Hausknecht と Stone~\cite{hausknecht2015} が提案した DRQN を用いる．DRQN は DQN の全結合層を LSTM に置き換えたアーキテクチャであり，過去の観測系列を逐次処理することで，部分観測下での Q 値推定を可能にする．
 
-ここで，信頼性$\hat{\rho}_{Y}$のもとでの理論的上限を導出するために，理想的なAESモデル（以降では「理想モデル」と呼ぶ）を考える．
-理想モデルは，真得点$T$と完全に相関した予測が可能（すなわち，$\hat{Y} \propto T$）であり，さらに，予測得点の平均と分散も目的変数のそれらと完全に一致する（すなわち，$\mu_{\hat{Y}}=\mu_{Y} \land \sigma_{\hat{Y}}=\sigma_{Y}$）と仮定する．
-このとき，このモデルの予測値$\hat{Y}$と信頼性$\rho_{Y}$の目的変数$Y$との相関係数$r_{\max}$は，付録の証明より次式で与えられる．
-\begin{equation}
-r_{\max} = \sqrt{\rho_{Y}}
-\label{eq:rmax}
-\end{equation}
-この式は，真の得点との相関が1となる予測が可能なAESモデルであっても，データセットの得点データが誤差を含んでいるために，観測される相関係数が$1$にはならず$\sqrt{\rho_{Y}}$で頭打ちとなることを示している．したがって，$\sqrt{\rho_{Y}}$が相関係数の理論的な上限と解釈でき，その推定量$\hat{r}_{\max}$は$\sqrt{\hat{\rho}_{Y}}$として求められる．
+本研究における DRQN のアーキテクチャは以下の構成である．
+\begin{enumerate}
+\item Embedding 層：回答を3カテゴリ（0: 誤答，1: 正答，2: 開始トークン）の埋め込み表現に変換する．
+\item LSTM 層：埋め込み系列を逐次処理し，隠れ状態を更新する．
+\item 全結合出力層：LSTM の出力からアイテムバンク内の全項目に対する Q 値を出力する．
+\end{enumerate}
 
-次に，上記の相関係数の上限値をもとにQWKの上限値を算出する．
-本研究では，Linの合意相関係数（Concordance Correlation Coefficient; CCC）に基づくQWKの近似~\cite{barnhart2007overall}を採用する．
-ここで，AESモデルの予測値$\hat{Y}$と目的変数$Y$との相関係数を$r$とすると，CCCによるQWKの近似値（以降では$\kappa$と書く）は次式で求められる~\cite{barnhart2007overall}．
-\begin{equation}
-\kappa \approx r \left( \frac{2 \sigma_{\hat{Y}} \sigma_{Y}}{\sigma_{\hat{Y}}^2 + \sigma_{Y}^2 + (\mu_{\hat{Y}} - \mu_{Y})^2} \right)
-\label{eq:qwk_max}
-\end{equation}
-ただし，$\mu_{\hat{Y}}$と$\sigma^2_{\hat{Y}}$はモデルの予測値$\hat{Y}$の平均と分散，$\mu_{Y}$と$\sigma^2_{Y}$は実測の目的変数$Y$の平均と分散を表す．
+\begin{figure}[t]
+\centering
+\includegraphics[width=.88\columnwidth]{img/drqn_arch.png}
+\caption{DRQN のアーキテクチャ．回答系列を Embedding 層で埋め込み表現に変換し，LSTM で逐次処理した後，各項目の Q 値を出力する．}
+\label{fig:drqn_arch}
+\end{figure}
 
-CCC近似を用いると，$r_{\max}$かつ$\mu_{\hat{Y}}=\mu_{Y} \land \sigma_{\hat{Y}}=\sigma_{Y}$を達成する理想モデルが示すQWKは次式で書ける．
-\begin{equation}
-\kappa_{\max} \approx r_{\max} = \sqrt{\rho_{Y}}
-\end{equation}
-すなわち，この値が，信頼性$\rho_{Y}$のデータセットにおいて到達可能なQWKの理論的上限値を示し，その推定量$\hat{\kappa}_{\max}$は$\sqrt{\hat{\rho}_{Y}}$で与えられることになる．
-
-なお，ここで利用しているCCCによるQWK近似は，データを等間隔の数値尺度として扱う連続量近似に依存する．
-他方で，AESでは得点の丸め処理や端点処理などが行われる場合があり，これが近似精度に影響を与える可能性がある．
-本研究では，\ref{sec:simulation}章のシミュレーション実験で，これらの処理下でも近似精度が十分に高いことを確認する．
-
-\vspace{-3mm}
-\subsection{人間相当精度目標の導出}\label{sec:human_like_ceiling}
-
-本節では，上記とは別の目標値として，AESを人間評価者の代替とみなす場合の目標値を導出する．
-実運用では，AESによる完全な自動採点ではなく，AESを二重採点の片側や人間採点の検証に使用する形で導入されることも多い．
-このような場面では，平均的な人間評価者と同程度の誤差特性を持つモデル（以降では，人間相当モデルと呼ぶ）が到達し得る精度が，導入判断のためのより合理的な目標値になるといえる．
-そこでここでは，人間相当モデルが目的変数$Y$に対して達成しうるQWKの到達水準を人間相当精度目標として導出する．導出の方針は先と同様であり，1名評価者相当の信頼性をもとに，それに対応する相関係数を導出し，CCC近似によってQWKの目標値を導出する．
-
-今，人間相当モデルの出力を$\tilde{X}$とし，その誤差分散が単独評価者$X$と同程度であると考え，次式が成り立つと仮定する．
-\begin{equation}
-\tilde{X}_{i} = T_i + \eta_{i}
-\end{equation}
-ただし，$\mathbb{E}[\eta_{i}] = 0$，$\mathrm{Cov}(T_i, \eta_{i}) = 0$，$\mathrm{Cov}(\varepsilon_{ij}, \eta_{i}) = 0$，$\sigma^2_{\eta} = \sigma^2_{\varepsilon}$とする．
-$\sigma^2_{\eta}$と$\sigma^2_{\varepsilon}$は$\eta_i$と$\varepsilon$の分散を表す．
-
-このとき，$\tilde{X}$の信頼性は，単独評価者の観測得点$X$の信頼性と等価となり，次式で与えられる．
-\begin{equation}
-\rho_{1} = \frac{\sigma_T^2}{\sigma_X^2} = \frac{\sigma_T^2}{\sigma_T^2+\sigma_{\varepsilon}^2}\label{eq:reliability_def_1}
-\end{equation}
-
-信頼性$\rho_1$に基づくと，付録の証明より，$\tilde{X}$と目的変数$Y$の相関$r_{\mathrm{HL}}$は次式で与えられる．
-\begin{equation}
-r_{\mathrm{HL}} = \sqrt{\rho_{1}\rho_{Y}}
-\label{eq:r_humanlike}
-\end{equation}
-
-ここで，前節と同様にQWKのCCC近似を前提とすると，予測値$\tilde{X}$の平均と分散が$Y$と整合している状況では，$r_{\mathrm{HL}}$に対応するQWKは次式で求められる．
-\begin{equation}
-\kappa_{\mathrm{HL}} \approx r_{\mathrm{HL}} = \sqrt{\rho_{1}\rho_{Y}}
-\label{eq:kappa_humanlike}
-\end{equation}
-
-上記の$r_{\mathrm{HL}}$と$\kappa_{\mathrm{HL}}$は，信頼性$\rho_1$の評価データセットにおいて人間相当モデルが達成できる相関とQWKを解釈できるため，本研究ではこれを人間相当精度目標とみなす．
-これらの推定値$\hat{r}_{\mathrm{HL}}$と$\hat{\kappa}_{\mathrm{HL}}$は，信頼性指標の推定値を用いて$\sqrt{\widehat{\rho}_1\widehat{\rho}_Y}$として算出できる．
-なお，$\rho_1$の推定量$\hat{\rho}_1$は，一元配置ランダム効果・単独評定に基づくICCとして推定できる．
-
-\vspace{-3mm}
-\subsection{評価者間QWKの解釈}\label{sec:human_qwk}
-
-\ref{sec:intro}章で述べた通り，先行研究ではしばしば評価者間の相関やQWK（以降ではそれぞれ$r_{H}$と$\kappa_{H}$と呼ぶ）をAES精度の一つの目標値としてきた．
-ここでは，これらが真の上限を過小評価した目標値であることを示す．
-
-ここで，2系列の人間得点($X_{\cdot 1},X_{\cdot 2}$)間の相関を$r_H$とすると，付録より次の不等式が証明できる．
-\begin{equation}
-    r_H \le r_{\max}
-    \label{eq:rH_le_rmax}
-\end{equation}
-
-さらに，CCCによるQWK近似から，
-\begin{equation}
-    \kappa_H \approx r_H\,F_H \le r_H
-    \label{eq:kappaH_le_rH}
-\end{equation}
-が導出できる．ただし，$F_H$は次式で与えられる．
-\begin{equation}
-F_H = \frac{2 \sigma_{1} \sigma_{2}}{\sigma_{1}^2 + \sigma_{2}^2 + (\mu_{1} - \mu_{2})^2}
-\end{equation}
-ここで，$\mu_{j}$と$\sigma_{j}^2$は$j$系列目の人間得点の平均と分散を表す．
-なお，式\eqref{eq:kappaH_le_rH}における$r_H\,F_H \le r_H$の成立は，$\sigma_{1}^2 + \sigma_{2}^2 \ge 2 \sigma_{1} \sigma_{2}$から常に$0 \le F_H \le 1$が成り立ち，かつ，一般に$r_H \ge 0$となることから示される．
-
-以上から，$r_{\max} \approx \kappa_{\max}$であったことに注意すると，次式の成立が期待されることがわかる．
-\begin{equation}
-    \kappa_H \lesssim r_H \le r_{\max} \approx \kappa_{\max}
-    \label{eq:kappaH_pessimistic}
-\end{equation}
-
-この式は，人間同士の相関やQWKが，本研究で導出した理論的精度上限より一般に低くなることを意味している．
-この帰結は，信頼性が低い個別評価者同士よりも，信頼性が高い複数評価者の平均得点とそれを目標値とするAESの予測値の間の方が，ノイズの低減によって一致しやすくなると考えれば，合理的といえる．
-以上から，人間同士のQWKは，AESの真の性能上限を過小評価した保守的な目標値といえる．
-
-また，人間相当精度目標$\kappa_{\mathrm{HL}}$は，付録の証明から一般に次式を満たし，人間評価者間のQWK（$\kappa_H$）と，理論的精度上限$\kappa_{\max}$の間に位置すると期待できる．
-\begin{equation}
-    \kappa_H \lesssim \kappa_{\mathrm{HL}}\le \kappa_{\max} \label{eq:all_index}
-\end{equation}
-
-\vspace{-3mm}
-\section{シミュレーション実験による検証}
-\label{sec:simulation}
-
-ここでは，本研究で導出した目標値の妥当性を検証するために，シミュレーション実験を実施した．
-本実験では，実データでは観測不可能な真の得点を生成した上で，一定の誤差を反映させた観測データを生成し，それらを用いて次の3点を検証する．
-（1）真得点と観測平均点との実測のQWKと，本研究で提案した信頼性に基づく理論的精度上限が高精度に一致するか．
-（2）\ref{sec:human_qwk}節で示した目標値間の関係性（$\kappa_H \le \kappa_{\mathrm{HL}}\le \kappa_{\max}$）と整合した結果が得られるか．
-（3）QWKのCCC近似が，データの離散化や端点処理を含むAESの実験設定下でも十分に高精度であるか．
-
-\vspace{-3mm}
-\subsection{提案した目標値の妥当性評価}\label{sec:simulation_procedure}
-
-本実験では，サンプルサイズを$N=1000$，得点範囲を$0$から$10$の整数値とし，真の得点$T_i$をランダムに生成した．
-具体的には，次式の通り，平均$\mu=5.0$，標準偏差$\sigma = 3.3$の正規分布からサンプリングした値を，最近接整数に丸め，得点範囲$[0, 10]$内にクリッピング処理することで，真の得点の集合を生成した．
-\begin{equation}
-    T_{i} = \text{clip}(\text{round}(T^{\prime}_i)), \quad T^{\prime}_i \sim N(5.0, 3.3^2)
-\end{equation}
-
-次に，独立同分布に従う誤差を真得点$T_i$に付加する次の操作で，2名の評価者の得点$X_{i1}, X_{i2}$を生成した．
-\begin{equation}
-    X_{ij} = \text{clip}(\text{round}(T_i + \varepsilon_{ij})), \quad \varepsilon_{ij} \sim N(0, \sigma_{noise}^2)
-\end{equation}
-ここで，$\sigma_{noise}^2$は誤差の分散を表す．
-さらに，目的変数$Y_i$を，評価者2名の得点の平均値$Y_i = \mathrm{round}((X_{i1} + X_{i2})/2)$として作成した．
-
-本実験では，以上のデータ生成を，$\sigma_{noise}$を$\{0.25, 0.50$, $1.00, 2.00, 3.00\}$ の5段階で変化させながら，各条件につき100回ずつを行い，それぞれの試行において理論的精度上限（$\hat{\kappa}_{\max}$），人間相当精度目標（$\hat{\kappa}_{\mathrm{HL}}$），2名の評価者得点間のQWK（$\hat{\kappa}_{H}$）を求めた．さらに，理想的なAESモデルの予測が$\hat{Y}_i = T_i$を達成すると想定し，その予測値$\hat{Y} = T_i$と目的変数$Y$と相関とQWK（以降では，$r_{\mathrm{true}}$，$\kappa_{\mathrm{true}}$と書く）も求めた．
+決定ステップ $l$ において，DRQN は開始トークンとこれまでの回答系列 $(\text{START}, o_1, o_2, \ldots, o_{l-1})$ を入力として受け取り，LSTM が内部状態を逐次更新する．これにより，推定特性値というスカラー情報に集約せずに，回答パターンの時系列的な特徴を直接利用して Q 値を推定する．
 
 \begin{table}[t]
 \centering
-\caption{シミュレーション実験の結果}
-\label{tab:simulation_ideal}
-\setlength{\tabcolsep}{5pt} 
-\begin{tabular}{cccccc} % 列数をソースに合わせて調整
-  \toprule
-  $\sigma_{noise}$ & $r_{\mathrm{true}}$ & $\kappa_{\mathrm{true}}$ & $\hat{\kappa}_{\max}$ & $\hat{\kappa}_{\mathrm{HL}}$ & $\hat{\kappa}_{H}$ \\
-  \midrule
-  0.25 & 0.993 & 0.990 & 0.996 & 0.989 & 0.985\\
-  0.50 & 0.987 & 0.982 & 0.991 & 0.974 & 0.965\\
-  1.00 & 0.967 & 0.961 & 0.972 & 0.919 & 0.895\\
-  2.00 & 0.897 & 0.890 & 0.901 & 0.749 & 0.683\\
-  3.00 & 0.802 & 0.797 & 0.806 & 0.563 & 0.482\\
-  \bottomrule
-\end{tabular}
-\end{table}
-
-実験結果を表\ref{tab:simulation_ideal}に示す．
-表から，理想的AESの予測得点に対応する真得点$T$と目的変数$Y$とのQWKと，信頼性係数から導出された理論的精度上限が，ノイズレベル$\sigma_{noise}$の全領域において高い整合性を示していることがわかる．
-このことは，本研究で導出した理論的精度上限が適切に理想的AESのQWKを再現できていることを示している．
-
-次に，三つの目標値を比較すると，全ての条件において，期待通りに$\hat{\kappa}_H \le \hat{\kappa}_{\mathrm{HL}}\le \hat{\kappa}_{\max}$が成立していることがわかる．
-この結果は，評価者間QWKがモデル性能の論理的な上限ではないことを強く支持している．
-
-また，目標値間の差分はノイズレベルが大きくなるほど大きくなる傾向も読み取れる．
-証明は省略するが，この現象は，評価者の採点誤差が大きいデータセットほど，人間評価者間QWKによる真の目標値の過小評価が顕著になることを意味している．
-
-\vspace{-3mm}
-\subsection{CCCによるQWK近似の精度検証}
-
-ここでは，CCCに基づくQWKの近似精度を評価する実験を行った．
-具体的には，\ref{sec:simulation_procedure}節と同じシミュレーション実験を，評価者のノイズレベル$\sigma_{noise}$を一様分布$U(0.1, 5)$からランダムサンプリングしながら100回繰り返し，それぞれの試行において，理想的なAESの予測得点に対応する真得点$T$と目的変数$Y$とのQWKを計算した．さらに，真得点$T$と目的変数$Y$の相関，およびそれぞれの得点の平均・分散を用いて，CCC近似によるQWKを求め，その差で表現される近似誤差を求めた．
-実験の結果，100試行分の近似誤差に基づいて計算した平均絶対誤差は0.005，最大絶対誤差でも0.011であり，近似の誤差は総じて非常に小さいことが示唆される．
-このことから，CCCのQWKによる近似は十分妥当であると結論づけられる．
-
-\vspace{-3mm}
-\section{実データによる検証}
-\label{sec:real_data}
-
-\begin{table}[t]
-\small
-\setlength{\tabcolsep}{4pt} 
-\centering
-\caption{ASAPデータセットに対する分析結果}
-\label{tab:asap_results}
-\begin{tabular}{cccccccc}
+\caption{DQN と DRQN の比較}
+\label{tab:dqn_drqn}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{0.18\columnwidth}p{0.30\columnwidth}p{0.34\columnwidth}}
 \toprule
-\multirow{2}{*}{Prompt} & \multirow{2}{*}{$\hat{\kappa}_{\max}$} & \multirow{2}{*}{$\hat{\kappa}_{\mathrm{HL}}$} & \multirow{2}{*}{$\hat{\kappa}_{H}$} & \multicolumn{2}{c}{BERT} & NPCR \\ \cline{5-6}
-  &  &  & & QWK & Correl & (QWK) \\
+ & DQN & DRQN \\
 \midrule
-1 & 0.915 & 0.777 & 0.721 & 0.803 & 0.809 & 0.856 \\
-2 & 0.947 & 0.855 & 0.814 & 0.698 & 0.704 & 0.750 \\
-3 & 0.932 & 0.818 & 0.769 & 0.647 & 0.648 & 0.756 \\
-4 & 0.959 & 0.885 & 0.851 & 0.764 & 0.764 &  0.851 \\ 
-5 & 0.927 & 0.804 & 0.753 & 0.779 & 0.781 &  0.847 \\ 
-6 & 0.935 & 0.824 & 0.776 & 0.777 & 0.787 &  0.858 \\ 
-7 & 0.916 & 0.778 & 0.721 & 0.824 & 0.826 &  0.838 \\ 
-8 & 0.879 & 0.697 & 0.629 & 0.723 & 0.749 &  0.779 \\ 
-\midrule
-Avg. & 0.926  & 0.805 & 0.754 & 0.752 & 0.759 & 0.817 \\
+定式化 & MDP & POMDP \\
+状態表現 & 推定特性値 $\hat{\theta}_l$ & 回答履歴 $(o_1,\ldots,o_{l-1})$ \\
+ネットワーク & 全結合ネットワーク & Embedding + LSTM + 全結合 \\
+入力次元 & 1 & 可変長系列 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{table}[t]
-\small
-\setlength{\tabcolsep}{3.2pt} 
-\centering
-\caption{ELLIPSEデータセットに対する分析結果}
-\label{tab:ellipse_results}
-\begin{tabular}{ccccccccccc}
-\toprule
-\multirow{2}{*}{Trait} & \multirow{2}{*}{$\hat{\kappa}_{\max}$} & \multirow{2}{*}{$\hat{\kappa}_{\mathrm{HL}}$} & \multirow{2}{*}{$\hat{\kappa}_{H}$} & \multicolumn{2}{c}{BERT} & \multicolumn{2}{c}{MTAA} \\ \cline{5-8}
- &  &  & & QWK & Correl & QWK & Correl \\
-\midrule
-1 & 0.818 & 0.581 & 0.504 & 0.476 & 0.505 & 0.630 & 0.660 \\
-2 & 0.817 & 0.578 & 0.501 & 0.533 & 0.575 & 0.690 & 0.720 \\
-3 & 0.799 & 0.547 & 0.469 & 0.534 & 0.557 & 0.670 & 0.700 \\
-4 & 0.814 & 0.573 & 0.496 & 0.531 & 0.586 & 0.690 & 0.730 \\
-5 & 0.828 & 0.597 & 0.522 & 0.592 & 0.613 & 0.720 & 0.740 \\
-6 & 0.823 & 0.588 & 0.511 & 0.564 & 0.591 & 0.710 & 0.750 \\
-\midrule
-Avg. & 0.816 & 0.577 & 0.501 & 0.538 & 0.571 & 0.685 & 0.717 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{学習アルゴリズム}
 
+DRQN の学習は DQN と同様に，$\varepsilon$-greedy 法による方策選択，ターゲットネットワーク，および経験再生（experience replay）の3つの手法を用いる~\cite{mnih2013,mnih2015}．
 
-本章では，AES研究で用いられる2つのベンチマークデータセットに対して，それぞれの目標値といくつかのAESモデルの精度を算出して，比較する．
+ただし，Wang らの DQN では経験再生の単位がステップごとの遷移 $\{\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1}\}$ であるのに対し，本研究の DRQN では経験再生の単位を1エピソード（1人の受検者のテスト全体）とする．これは，LSTM の隠れ状態がエピソード内の回答系列に依存しており，系列の途中の単一遷移だけを抜き出すと隠れ状態を正しく再現できないためである．
 
-本実験では，以下の2種類のデータセットを用いた．
-\begin{description}
-\setlength{\itemsep}{1pt}
-    \item[\textbf{ASAP (Automated Student Assessment Prize):}] 8つのエッセイ課題（Promptと呼ばれる）に対する採点済みエッセイのデータセットであり，各回答には2名の評価者の得点が与えられている．本実験では，Prompt 1，7，8では2名評価の合計点，それ以外では2名評価の平均点を目的変数として集計して使用した．
-    \item[\textbf{ELLIPSE-Corpus~\cite{ellipse_aied24}:}] 2名の評価者の得点が付与されたエッセイデータセットであり，評価はCohesion, Syntaxなどの6つの評価観点（Traitと呼ばれる）ごとに付与されている．本データセットは3911件の訓練データと2571件の評価データに予め分割されている．本実験では，2名の評価者の平均点を目的変数として集計して使用した．
-\end{description}
-
-本実験では，上記のそれぞれのデータセットについて，理論的精度上限（$\kappa_{\max}$），人間相当精度目標（$\kappa_{\mathrm{HL}}$），2名の評価者得点間QWK（$\kappa_{H}$）を求めた．
-さらに，これらの目標値に対するAESモデルの達成度を検証するために，標準的な設計のBERTベースのAESモデル\cite{uto-review2021}の精度も評価した．
-加えて，先端モデルとして，ASAPではNPCR（Neural Pairwise Contrastive Regression）~\cite{npcr2022}，ELLIPSEではMTAA（Multi-Task Automated Assessment）~\cite{ellipse_aied24}の論文値も確認した．
-
-表\ref{tab:asap_results}と表\ref{tab:ellipse_results}に結果を示す．
-なお，NPCRの論文では相関を報告していないため，QWKのみを掲載している．
-
-まず3つの目標値を比較すると，すべての条件で，理論通りに$\hat{\kappa}_H \le \hat{\kappa}_{\mathrm{HL}}\le \hat{\kappa}_{\max}$の不等式が成立していることが読み取れる．
-特に，人間評価者間でのQWKが低いELLIPSEデータセットでは，$\hat{\kappa}_{\max}$と$\hat{\kappa}_H$の乖離が大きくなっており，従来の目標値$\hat{\kappa}_H$が真の上限を著しく過小評価している可能性が読み取れる．
-
-次に，AESの精度を目標値に照らすと，AESの精度が$\hat{\kappa}_{H}$を超えているケースが散見することがわかる．
-ELLIPSEデータセットにおいては，平均で見ても，両モデルの性能が$\hat{\kappa}_{H}$を上回っている．
-これらのことから，評価者間QWKは実際に超えることが可能な，保守的な上限であることがわかる．
-
-一方で，いずれの条件においても，理論的精度上限$\hat{\kappa}_{\max}$に対しては，現状のモデルの性能が比較的大きく乖離しており，本質的な性能改善の余地は残されていることが読み取れる．
-また，人間相当精度目標$\hat{\kappa}_{\mathrm{HL}}$に対しては，BERTでもいくつかの条件で，NPCRとMTAAでは多くのケースで，同水準以上を達成している．
-以上から，現状のAESモデルは，回答の潜在的な真得点を安定的に復元できる性能には至っていないが，1名の人間評価者を代替できる程度の精度には到達していると理解できる．
-
-\vspace{-3mm}
-\section{おわりに}\label{sec:conclusion}
-
-本研究では，AESで使用されるデータセットにおける得点データの誤差成分の影響を，CTTの信頼性の概念に基づいて評価し，それを用いて，
-（1）理論的に到達可能なQWKの上限（$\kappa_{\max}$）と，（2）人間評価者相当の採点誤差を持つAESが到達可能なQWK値（$\kappa_{\mathrm{HL}}$）を導出するとともに，従来の経験的な目標値であった評価者間QWK（$\kappa_H$）が実際の上限を過小評価するものであることを理論的・実験的に示した．
-
-本研究は，従来は相対比較に留まりがちだったAES精度を，絶対的に解釈可能にする基準を与えるものであり，AESの研究と実用のいずれにおいても重要な知見を与えるものと考える．
-
-\vspace{-3mm}
-\bibliographystyle{junsrt}
-\bibliography{references}
-
-\vspace{-3mm}
-\subsection*{付録：証明}
-
-式\eqref{eq:rmax}の等式は以下の通り証明できる．
-\begin{align*}
-r_{\max} & = \text{Cor}(\hat{Y}, Y) = \text{Cor}(T, Y) =  \frac{\mathrm{Cov}(T,Y)}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} \\
-& = \frac{\mathrm{Cov}(T,T+\bar{\varepsilon})}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} 
- = \frac{\sigma^2_T}{\sqrt{{\sigma^2_T}{\sigma^2_Y}}} = \sqrt{\rho_{Y}}
-\end{align*}
-ここで，$\text{Cor}(T, Y)$は$T$と$Y$の相関を表す．
-
-また，式\eqref{eq:r_humanlike}は以下の通り証明できる．
-\begin{equation*}
-\mathrm{Cor}(\tilde{X},Y)
-= \frac{\mathrm{Cov}(T+\eta,\,T+\bar{\varepsilon})}
-        {\sqrt{\mathrm{Var}(T+\eta)\,\mathrm{Var}(T+\bar{\varepsilon})}} = \sqrt{\rho_1\rho_Y}.
-\end{equation*}
-ここでは，$\rho_1={\sigma_T^2}/{(\sigma_T^2+\sigma^2_{\eta})}$，
-$\rho_Y={\sigma_T^2}/{(\sigma_T^2+\sigma_{\bar{\varepsilon}}^2)}$を用いた．また，$\mathrm{Var}(\cdot)$は引数の変数の分散を表す．
-
-次に，式\eqref{eq:rH_le_rmax}の証明を示す．
-まず，2名の評価者間における得点のピアソン相関は次式のように変形できる．
+学習の手順は以下の通りである．
+\begin{enumerate}
+\item 学習用の特性値 $\theta_n$（$n = 1,\ldots,N_{\mathrm{training}}$）を生成する．
+\item 各受検者について，テスト長 $L$ の CAT を実行し，各ステップの回答，行動，報酬を記録する．
+\item エピソード単位でリプレイメモリに保存する．
+\item ミニバッチをサンプリングし，次の損失関数で Q-Network のパラメータを更新する．
+\end{enumerate}
 \begin{align}
-    r_H & = \mathrm{Cor}(X_{\cdot 1}, X_{\cdot 2}) = \frac{\mathrm{Cov}(X_{\cdot 1},X_{\cdot 2})}
-            {\sqrt{\mathrm{Var}(X_{\cdot 1})\,\mathrm{Var}(X_{\cdot 2})}} \nonumber \\
-    & = \frac{\sigma_T^2}
-            {\sqrt{\bigl(\sigma_T^2+\mathrm{Var}(\varepsilon_{\cdot 1})\bigr)
-                   \bigl(\sigma_T^2+\mathrm{Var}(\varepsilon_{\cdot 2})\bigr)}}
-    \label{eq:rH_def}
+\mathcal{L}
+= \Bigl[
+r_l + \gamma \max_{i \in B_{l+1}} Q_{\mathrm{target}}(s_{l+1}, i; \bm{\theta}') \notag\\
+&\qquad - Q_{\mathrm{action}}(s_l, i_l; \bm{\theta})
+\Bigr]^2
 \end{align}
-一方で，2名平均の信頼性は，$Y=(X_{\cdot 1}+X_{\cdot 2})/2 = T + (\varepsilon_{\cdot 1}+\varepsilon_{\cdot 2})/2$ より，
-$\mathrm{Var}(Y) = \sigma_T^2 + (\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))/4$となることに注意すると，次式で書ける．
+さらに，$\tau$ 回の更新ごとにターゲットネットワークのパラメータを同期し，定期的にバリデーションを行って最良モデルを保存する．
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=.94\columnwidth]{img/dqn_training_flow.png}
+\caption{DQN ベースの項目選択戦略の学習過程．DRQN では状態表現が回答履歴に置き換わり，経験再生の単位がステップからエピソードへ変更される．}
+\label{fig:dqn_training}
+\end{figure}
+
+\section{シミュレーション実験}
+
+\subsection{実験設定}
+
+\paragraph{アイテムバンクの生成}
+Wang ら~\cite{wang2024} のシミュレーション設定に基づき，各アイテムバンクを200項目で生成した．項目パラメータの分布は以下の通りである．
+\begin{itemize}
+\item 識別力：$a \sim N(1.2, 0.25)$（$a > 0$）
+\item 困難度：$b \sim N(0, 1)$
+\item 疑似推測：$c \sim N(0.25, 0.02)$（$0 < c < 1$）
+\end{itemize}
+パラメータ間に相関のないアイテムバンク（$r_{ab}=0$）と相関のあるアイテムバンク（$r_{ab}=0.5$）の2種類を各10バンク，計20バンク生成した．各バンクに対して，5,000名の受検者の真の特性値を標準正規分布 $N(0,1)$ から生成した．
+
+\paragraph{比較手法}
+以下の4手法を比較する．
+\begin{enumerate}
+\item MFI：最大フィッシャー情報量法~\cite{lord1980}
+\item FIWL：尤度重み付きフィッシャー情報量法~\cite{veerkamp1997}
+\item DQN：Deep Q-Network に基づく手法~\cite{wang2024}
+\item DRQN：Deep Recurrent Q-Network に基づく手法（提案手法）
+\end{enumerate}
+MFI と FIWL の実装には R パッケージ catR~\cite{magis2017} を用いる．
+
+\paragraph{強化学習手法のハイパーパラメータ}
+DQN と DRQN の学習設定を表~\ref{tab:hyperparams} に示す．
+
+\begin{table}[t]
+\centering
+\caption{DQN と DRQN のハイパーパラメータ}
+\label{tab:hyperparams}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{0.28\columnwidth}p{0.22\columnwidth}p{0.33\columnwidth}}
+\toprule
+パラメータ & DQN & DRQN \\
+\midrule
+ネットワーク構造 & \shortstack[l]{1$\to$50\\$\to$30$\to$200} & \shortstack[l]{Embedding(3,16)\\$\to$LSTM(64)\\$\to$Linear(200)} \\
+学習データ数 $N_{\mathrm{training}}$ & 1,000 & 1,000 \\
+テスト長 $L$ & 40 & 40 \\
+割引率 $\gamma$ & 0.1 & 0.1 \\
+リプレイメモリサイズ $N_D$ & 1,000 & 1,000 \\
+ミニバッチサイズ $m$ & 128 & 128 \\
+ターゲット更新間隔 $\tau$ & 40 & 40 \\
+学習率 & 0.001 & 0.001 \\
+$\varepsilon$ & 0.1 & 0.1 \\
+バリデーション間隔 & 50 & 50 \\
+バリデーション数 & 200 & 200 \\
+学習データ分布 & $N(0,1)$ & $N(0,1)$ \\
+報酬 & $I_{i_l}(\theta)$ & $I_{i_l}(\theta)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+DQN では全てのネットワークパラメータに正値制約を適用し，Q 値が正であることを保証する．DRQN では出力層の重みとバイアスのみに正値制約を適用し，さらに勾配クリッピング（最大ノルム 1.0）を導入して学習を安定化させる．
+
+\paragraph{評価指標}
+以下の3指標を用いて，推定特性値の回復精度を評価する．
 \begin{equation}
-    \rho_Y = \frac{\sigma_T^2}{\sigma_Y^2}
-    = \frac{\sigma_T^2}
-           {\sigma_T^2 + {(\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))}/{4}}
-    \label{eq:rhoY_two_raters_general}
+\mathrm{Bias} = \frac{1}{N} \sum_{n=1}^{N} (\hat{\theta}_n - \theta_n)
+\end{equation}
+\begin{equation}
+\mathrm{RMSE} = \sqrt{\frac{1}{N} \sum_{n=1}^{N} (\hat{\theta}_n - \theta_n)^2}
+\end{equation}
+\begin{equation}
+\mathrm{MAE} = \frac{1}{N} \sum_{n=1}^{N} \lvert \hat{\theta}_n - \theta_n \rvert
 \end{equation}
 
-ここで，$\rho_Y - r_H^2 \ge 0$は，
-\begin{equation*}
-    \frac{3}{4}\sigma_T^2(\mathrm{Var}(\varepsilon_{\cdot 1})+\mathrm{Var}(\varepsilon_{\cdot 2}))+\mathrm{Var}(\varepsilon_{\cdot 1})\mathrm{Var}(\varepsilon_{\cdot 2}) \ge 0.
-\end{equation*}
-と変形できることから，$\rho_Y-r_H^2\ge0$，すなわち $r_H^2\le\rho_Y$ が成り立つ．よって$r_H \le \sqrt{\rho_Y} = r_{\max}$が成り立つ．
+\subsection{結果}
 
-次に，\ref{sec:human_qwk}節で示した$\kappa_H \lesssim \kappa_{\mathrm{HL}}\le \kappa_{\max}$を証明する．
-まず，$\rho_1\le 1$から$\sqrt{\rho_1 \rho_Y} \le \sqrt{\rho_Y}$が成立し，$\kappa_{\mathrm{HL}}\le \kappa_{\max}$が成り立つ．
-次に，$\mathrm{Var}(\varepsilon_{\cdot 1}) = \mathrm{Var}(\varepsilon_{\cdot 2}) = \sigma_{\varepsilon}^2$を仮定すると，式\eqref{eq:rH_def}から$r_H = {\sigma_T^2}/{(\sigma_T^2+\sigma_{\varepsilon}^2)} = \rho_1$
-が成立する．また，式\eqref{eq:kappaH_le_rH}より$\kappa_H \approx r_H\,F_H \le r_H = \rho_1$が成り立つ．ここで，$\sigma^2_{\bar{\varepsilon}} = \mathrm{Var}\left(\frac{1}{J}\sum_{j=1}^{J} \varepsilon_{ij}\right) \le \sigma^2_{{\varepsilon}}$であることを踏まえると，式\eqref{eq:reliability_def_Y}と式\eqref{eq:reliability_def_1}から$\rho_1 \le \rho_Y$が得られる．
-したがって，$\rho_1 \le \sqrt{\rho_1 \rho_Y}$が成立し，$\kappa_H \le \rho_1 \le \sqrt{\rho_1 \rho_Y} \approx \kappa_{\mathrm{HL}}$の成立が確認できる．
+無相関アイテムバンク（$r_{ab}=0$，バンク1）におけるテスト長40時点での比較結果を表~\ref{tab:step40_results} に示す．
 
+\begin{table}[t]
+\centering
+\caption{無相関バンク（バンク1）における40問選択時点の推定精度}
+\label{tab:step40_results}
+\small
+\begin{tabular}{lccc}
+\toprule
+手法 & Bias & RMSE & MAE \\
+\midrule
+MFI & 0.012 & 0.342 & 0.264 \\
+FIWL & --- & --- & --- \\
+DQN ($\gamma=0.1$, normal) & -0.028 & 0.254 & 0.170 \\
+DRQN ($\gamma=0.1$, normal) & -0.101 & 0.200 & 0.157 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+DRQN は40問選択時点において RMSE = 0.200 を達成し，MFI（RMSE = 0.342）と比較して約42\%，DQN（RMSE = 0.254）と比較して約21\%の改善を示した．MAE についても同様の傾向が確認された．
+
+各ステップにおける RMSE の推移を表~\ref{tab:rmse_by_step} に示す．
+
+\begin{table}[t]
+\centering
+\caption{各ステップにおける RMSE の推移（無相関バンク，バンク1）}
+\label{tab:rmse_by_step}
+\small
+\begin{tabular}{cccc}
+\toprule
+ステップ & MFI & DQN & DRQN \\
+\midrule
+5  & 0.984 & 0.852 & 1.078 \\
+10 & 0.699 & 0.519 & 0.829 \\
+15 & 0.547 & 0.424 & 0.544 \\
+20 & 0.470 & 0.239 & 0.653 \\
+25 & 0.418 & 0.260 & 0.366 \\
+30 & 0.383 & 0.369 & 0.333 \\
+35 & 0.358 & 0.294 & 0.191 \\
+40 & 0.342 & 0.254 & 0.200 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+表~\ref{tab:rmse_by_step} に示すように，MFI は初期ステップから安定して RMSE が低下する．DQN もテスト序盤から比較的低い RMSE を示す．一方，DRQN はテスト序盤では MFI より高い RMSE を示すが，ステップ数が増加するにつれて急速に改善し，ステップ25以降では他の手法を上回る精度を達成する．これは，十分な回答履歴が蓄積されることで，LSTM が回答パターンから特性値の情報をより正確に抽出できるようになるためと考えられる．
+
+\section{おわりに}
+
+本研究では，IRT に基づく CAT の項目選択問題を POMDP として再定式化し，回答履歴を状態として利用する DRQN に基づく項目選択戦略を提案した．シミュレーション実験により，提案手法は40問選択時点において既存の MFI および DQN を上回る推定精度を達成することが示された．
+
+提案手法の利点として，回答パターンの直接利用と，CAT を部分観測問題として扱う理論的整合性が挙げられる．一方で，テスト序盤の精度，バンク間の一般化，実データによる検証は今後の課題である．特に序盤性能の補完には，MFI 等の情報量基準手法を併用するハイブリッド戦略の検討が有望である．
+
+\begin{thebibliography}{99}
+
+\bibitem{barnhart2007}
+H.~X. Barnhart, M.~J. Haber, and L.~I. Lin:
+Overall concordance correlation coefficient for evaluating agreement among multiple observers,
+\textit{Biometrics}, Vol.~63, No.~4, pp.~1099--1106 (2007)
+
+\bibitem{chang1996}
+H.-H. Chang and Z. Ying:
+A global information approach to computerized adaptive testing,
+\textit{Applied Psychological Measurement}, Vol.~20, No.~3, pp.~213--229 (1996)
+
+\bibitem{chen2018}
+Y. Chen, X. Li, J. Liu, and Z. Ying:
+Recommendation system for adaptive learning,
+\textit{Applied Psychological Measurement}, Vol.~42, No.~1, pp.~24--41 (2018)
+
+\bibitem{dodd1990}
+B.~G. Dodd:
+The effect of item selection procedure and stepsize on computerized adaptive attitude measurement using the rating scale model,
+\textit{Applied Psychological Measurement}, Vol.~14, No.~4, pp.~355--366 (1990)
+
+\bibitem{frey2023}
+A. Frey:
+Computerized adaptive testing,
+in R.~J. Mislevy and H. Jiao (Eds.),
+\textit{The Oxford Handbook of Educational Assessment},
+Oxford University Press (2023)
+
+\bibitem{ghosh2021}
+A. Ghosh and A. Lan:
+BOBCAT: Bilevel optimization-based computerized adaptive testing,
+\textit{arXiv preprint arXiv:2108.07386} (2021)
+
+\bibitem{han2020}
+R. Han, K. Chen, and C. Tan:
+Curiosity-driven recommendation strategy for adaptive learning via deep reinforcement learning,
+\textit{British Journal of Mathematical and Statistical Psychology},
+Vol.~73, No.~3, pp.~522--540 (2020)
+
+\bibitem{hausknecht2015}
+M. Hausknecht and P. Stone:
+Deep recurrent Q-learning for partially observable MDPs,
+\textit{arXiv preprint arXiv:1507.06527} (2015)
+
+\bibitem{li2021}
+X. Li, H. Xu, J. Zhang, and H.-H. Chang:
+Optimal hierarchical learning path design with reinforcement learning,
+\textit{Applied Psychological Measurement}, Vol.~45, No.~1, pp.~54--70 (2021)
+
+\bibitem{li2023}
+X. Li, H. Xu, J. Zhang, and H.-H. Chang:
+Deep reinforcement learning for adaptive learning systems,
+\textit{Journal of Educational and Behavioral Statistics},
+Vol.~48, No.~2, pp.~220--243 (2023)
+
+\bibitem{lord1980}
+F.~M. Lord:
+\textit{Applications of Item Response Theory to Practical Testing Problems},
+Erlbaum (1980)
+
+\bibitem{magis2017}
+D. Magis and J.~R. Barrada:
+Computerized adaptive testing with R: Recent updates of the package catR,
+\textit{Journal of Statistical Software}, Vol.~76, No.~1, pp.~1--19 (2017)
+
+\bibitem{mnih2013}
+V. Mnih, K. Kavukcuoglu, D. Silver, \textit{et al}.:
+Playing Atari with deep reinforcement learning,
+\textit{arXiv preprint arXiv:1312.5602} (2013)
+
+\bibitem{mnih2015}
+V. Mnih, K. Kavukcuoglu, D. Silver, \textit{et al}.:
+Human-level control through deep reinforcement learning,
+\textit{Nature}, Vol.~518, No.~7540, pp.~529--533 (2015)
+
+\bibitem{nurakhmetov2019}
+D. Nurakhmetov:
+Reinforcement learning applied to adaptive classification testing,
+in B.~P. Veldkamp and C. Sluijter (Eds.),
+\textit{Theoretical and Practical Advances in Computer-based Educational Measurement},
+pp.~325--336, Springer (2019)
+
+\bibitem{shin2022}
+J. Shin and O. Bulut:
+Building an intelligent recommendation system for personalized test scheduling in computerized assessments: A reinforcement learning approach,
+\textit{Behavior Research Methods}, Vol.~54, No.~1, pp.~216--232 (2022)
+
+\bibitem{silver2016}
+D. Silver, A. Huang, C.~J. Maddison, \textit{et al}.:
+Mastering the game of Go with deep neural networks and tree search,
+\textit{Nature}, Vol.~529, No.~7587, pp.~484--489 (2016)
+
+\bibitem{silver2017}
+D. Silver, J. Schrittwieser, K. Simonyan, \textit{et al}.:
+Mastering the game of Go without human knowledge,
+\textit{Nature}, Vol.~550, No.~7676, pp.~354--359 (2017)
+
+\bibitem{sutton2018}
+R.~S. Sutton and A.~G. Barto:
+\textit{Reinforcement Learning: An Introduction},
+2nd ed., MIT Press (2018)
+
+\bibitem{tan2020}
+C. Tan, R. Han, R. Ye, and K. Chen:
+Adaptive learning recommendation strategy based on deep Q-learning,
+\textit{Applied Psychological Measurement}, Vol.~44, No.~4, pp.~251--266 (2020)
+
+\bibitem{tang2019}
+X. Tang, Y. Chen, X. Li, J. Liu, and Z. Ying:
+A reinforcement learning approach to personalized learning recommendation systems,
+\textit{British Journal of Mathematical and Statistical Psychology},
+Vol.~72, No.~1, pp.~108--135 (2019)
+
+\bibitem{vanderlinden2016}
+W.~J. van der Linden:
+\textit{Handbook of Item Response Theory},
+CRC Press (2016)
+
+\bibitem{veerkamp1997}
+W.~J.~J. Veerkamp and M.~P.~F. Berger:
+Some new item selection criteria for adaptive testing,
+\textit{Journal of Educational and Behavioral Statistics},
+Vol.~22, No.~2, pp.~203--226 (1997)
+
+\bibitem{wainer2000}
+H. Wainer, N.~J. Dorans, D. Eignor, \textit{et al}.:
+\textit{Computerized Adaptive Testing: A Primer},
+2nd ed., Erlbaum (2000)
+
+\bibitem{wang2024}
+P. Wang, H. Liu, and M. Xu:
+An adaptive testing item selection strategy via a deep reinforcement learning approach,
+\textit{Behavior Research Methods}, Vol.~56, pp.~8695--8714 (2024)
+
+\bibitem{weiss1982}
+D.~J. Weiss:
+Improving measurement quality and efficiency with adaptive testing,
+\textit{Applied Psychological Measurement}, Vol.~6, No.~4, pp.~473--492 (1982)
+
+\bibitem{weiss1984}
+D.~J. Weiss and G.~G. Kingsbury:
+Application of computerized adaptive testing to educational problems,
+\textit{Journal of Educational Measurement}, Vol.~21, No.~4, pp.~361--375 (1984)
+
+\bibitem{zhang2016}
+J. Zhang and H.-H. Chang:
+From smart testing to smart learning: How testing technology can assist the new generation of education,
+\textit{International Journal of Smart Technology and Learning},
+Vol.~1, No.~1, pp.~67--92 (2016)
+
+\end{thebibliography}
 
 \end{document}
-

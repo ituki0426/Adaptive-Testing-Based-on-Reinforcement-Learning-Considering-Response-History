@@ -129,6 +129,9 @@ DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り�
   - `The architecture of Q-Network in DRQN.png` — DRQN の Q-Network アーキテクチャ
 - `data/` — 生成されたアイテムバンク・特性値データ
 - `EXP001/`, `EXP002/` — 過去の実験（参考）
+- `paper.md` — 研究論文の Markdown 版
+- `tex/` — 研究論文の LaTeX 版
+  - `main.tex` — `paper.md` の LaTeX 版
 
 ## 論文 Markdown の扱い
 

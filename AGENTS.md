@@ -14,7 +14,7 @@
 - Python コードは `pyproject.toml` の Ruff / Pyright 設定に従う。
 - ファイル名にスペースが含まれるスクリプトや notebook があるため、コマンド実行時はパスを必ずクォートする。
 - 研究コードでは再現性を重視し、乱数 seed、データ生成条件、評価指標の変更を明示する。
-- 実験条件を変えた場合は、該当する `EXP***/`、`seminar_docs/`、または `paper.md` の記述更新が必要か確認する。
+- 実験条件を変えた場合は、該当する `EXP***/`、`seminar_docs/`、`paper.md`、または `tex/main.tex` の記述更新が必要か確認する。
 
 ## 研究の背景と位置づけ
 
@@ -140,6 +140,9 @@ DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り�
   - `The architecture of Q-Network in DRQN.png`：DRQN の Q-Network アーキテクチャ
 - `data/`：生成されたアイテムバンク・特性値データ
 - `EXP001/`, `EXP002/`：過去の実験（参考）
+- `paper.md`：研究論文の Markdown 版
+- `tex/`：研究論文の LaTeX 版
+  - `main.tex`：`paper.md` の LaTeX 版
 
 ## 論文 Markdown の扱い
 

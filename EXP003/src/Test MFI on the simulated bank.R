@@ -9,6 +9,7 @@ script_path <- if (!is.null(sys.frames()[[1]]$ofile)) {
   normalizePath(sub("--file=", "", args[grep("--file=", args)][1]))
 }
 root_dir <- normalizePath(file.path(dirname(script_path), "..", ".."))
+exp001_dir <- normalizePath(file.path(dirname(script_path), ".."))
 
 get_env <- function(name, default) {
   value <- Sys.getenv(name, unset = NA_character_)
@@ -111,7 +112,6 @@ item_bank <- item_bank[seq_len(min(n_items, nrow(item_bank))), , drop = FALSE]
 item_bank <- cbind(item_bank, d = 1)
 
 if (nchar(theta_csv) > 0) {
-  # Use pre-split theta values (e.g., exported from the DQN notebook).
   theta_true <- read.csv(theta_csv)[["x"]]
   message("Loaded theta from: ", theta_csv, " (n=", length(theta_true), ")")
 } else {
@@ -129,7 +129,7 @@ if (test_length > nrow(item_bank)) {
 records <- run_mfi_cat(item_bank, theta_true, test_length, seed)
 summary_by_step <- summarize_steps(records)
 
-results_dir <- file.path(root_dir, "results", "simulated_banks")
+results_dir <- file.path(exp001_dir, "results")
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 
 records_path <- file.path(results_dir, sprintf("records_%s_%d_MFI%s.csv", bank_type, bank_id, output_suffix))
