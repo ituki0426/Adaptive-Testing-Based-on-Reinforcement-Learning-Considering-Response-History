@@ -1,0 +1,103 @@
+\relax 
+\citation{zhang2016}
+\citation{weiss1982}
+\citation{wainer2000}
+\citation{frey2023}
+\citation{vanderlinden2016}
+\citation{lord1980}
+\citation{chang1996}
+\citation{veerkamp1997}
+\citation{chang1996}
+\citation{sutton2018}
+\citation{silver2016}
+\citation{silver2017}
+\citation{chen2018}
+\citation{han2020}
+\citation{li2021}
+\citation{li2023}
+\citation{tan2020}
+\citation{tang2019}
+\citation{nurakhmetov2019}
+\citation{ghosh2021}
+\citation{shin2022}
+\@writefile{toc}{\contentsline {section}{\numberline {1}はじめに}{1}{}\protected@file@percent }
+\citation{wang2024}
+\citation{hausknecht2015}
+\citation{weiss1984}
+\citation{frey2023}
+\citation{dodd1990}
+\citation{wang2024}
+\@writefile{toc}{\contentsline {section}{\numberline {2}タスク設定}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}項目反応モデル}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}CAT の構成要素}{2}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces IRT ベースの項目選択戦略のフローチャート．情報量基準に基づく戦略では，推定特性値から項目情報量を計算し，最も情報量の高い項目を選択する．}}{2}{}\protected@file@percent }
+\newlabel{fig:irt_flow}{{1}{2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}情報量基準に基づく項目選択戦略}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{MFI}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{FIWL}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}MDP に基づく定式化（DQN）}{2}{}\protected@file@percent }
+\citation{hausknecht2015}
+\citation{mnih2013}
+\citation{mnih2015}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces MDP 枠組みにおける RL ベースの項目選択戦略のフローチャート．項目選択の基準が情報量の直接最大化から Q 値の最大化に置き換わり，将来のテスト全体を通じた累積報酬を考慮できる．}}{3}{}\protected@file@percent }
+\newlabel{fig:mdp_flow}{{2}{3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces DQN における Q-Network のアーキテクチャ．入力は推定特性値 $\hat  {\theta }_l$ であり，2層の全結合ネットワークを経て各項目の Q 値を出力する．}}{3}{}\protected@file@percent }
+\newlabel{fig:dqn_arch}{{3}{3}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}提案手法}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}POMDP としての再定式化}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}DRQN による Q 関数の近似}{3}{}\protected@file@percent }
+\citation{wang2024}
+\citation{lord1980}
+\citation{veerkamp1997}
+\citation{wang2024}
+\citation{magis2017}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces DRQN のアーキテクチャ．回答系列を Embedding 層で埋め込み表現に変換し，LSTM で逐次処理した後，各項目の Q 値を出力する．}}{4}{}\protected@file@percent }
+\newlabel{fig:drqn_arch}{{4}{4}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces DQN と DRQN の比較}}{4}{}\protected@file@percent }
+\newlabel{tab:dqn_drqn}{{1}{4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}学習アルゴリズム}{4}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces DQN ベースの項目選択戦略の学習過程．DRQN では状態表現が回答履歴に置き換わり，経験再生の単位がステップからエピソードへ変更される．}}{4}{}\protected@file@percent }
+\newlabel{fig:dqn_training}{{5}{4}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}シミュレーション実験}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}実験設定}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{アイテムバンクの生成}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{比較手法}{4}{}\protected@file@percent }
+\bibcite{barnhart2007}{1}
+\bibcite{chang1996}{2}
+\bibcite{chen2018}{3}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces DQN と DRQN のハイパーパラメータ}}{5}{}\protected@file@percent }
+\newlabel{tab:hyperparams}{{2}{5}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces 無相関バンク（バンク1）における40問選択時点の推定精度}}{5}{}\protected@file@percent }
+\newlabel{tab:step40_results}{{3}{5}}
+\@writefile{toc}{\contentsline {paragraph}{強化学習手法のハイパーパラメータ}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{評価指標}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}結果}{5}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces 各ステップにおける RMSE の推移（無相関バンク，バンク1）}}{5}{}\protected@file@percent }
+\newlabel{tab:rmse_by_step}{{4}{5}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}おわりに}{5}{}\protected@file@percent }
+\bibcite{dodd1990}{4}
+\bibcite{frey2023}{5}
+\bibcite{ghosh2021}{6}
+\bibcite{han2020}{7}
+\bibcite{hausknecht2015}{8}
+\bibcite{li2021}{9}
+\bibcite{li2023}{10}
+\bibcite{lord1980}{11}
+\bibcite{magis2017}{12}
+\bibcite{mnih2013}{13}
+\bibcite{mnih2015}{14}
+\bibcite{nurakhmetov2019}{15}
+\bibcite{shin2022}{16}
+\bibcite{silver2016}{17}
+\bibcite{silver2017}{18}
+\bibcite{sutton2018}{19}
+\bibcite{tan2020}{20}
+\bibcite{tang2019}{21}
+\bibcite{vanderlinden2016}{22}
+\bibcite{veerkamp1997}{23}
+\bibcite{wainer2000}{24}
+\bibcite{wang2024}{25}
+\bibcite{weiss1982}{26}
+\bibcite{weiss1984}{27}
+\bibcite{zhang2016}{28}
+\gdef \@abspage@last{7}
