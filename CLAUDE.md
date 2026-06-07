@@ -90,7 +90,7 @@ DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り�
 
 ## リポジトリ構成
 
-- `EXP003/` — 最新の実験コード・結果（これを参照）
+- `EXP003/` — **ベースライン実験**（最新・これを参照）。MFI・FIWL・DQN・DRQN を同条件で比較し、DRQN の基本性能を確立した実験。
   - `notebook/` — Colab 用 notebook（MFI, FIWL, DRQN）
   - `result/` — 実験結果 CSV
 - `src/` — 共有コード
@@ -128,7 +128,8 @@ DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り�
   - `The architecture of Q-Network in DQN.png` — DQN の Q-Network アーキテクチャ
   - `The architecture of Q-Network in DRQN.png` — DRQN の Q-Network アーキテクチャ
 - `data/` — 生成されたアイテムバンク・特性値データ
-- `EXP001/`, `EXP002/` — 過去の実験（参考）
+- `EXP001/` — **Learnable Initial Hidden State DRQN**。LSTM の初期 hidden/cell state をゼロ固定から学習可能パラメータ（`nn.Parameter`）に変更し、序盤（step 1〜10）の RMSE 悪化を緩和できるか検証する実験。変更点はモデルの初期状態のみで、入力・報酬・評価手順はベースライン（EXP003）と同一。詳細は `EXP001/exp_summary.md` 参照。
+- `EXP002/` — **Burn-in DRQN**。replay memory から取り出した系列の先頭 `burn_in_steps`（デフォルト5）ステップを no-grad で LSTM に流して hidden state を構築し、残りの後半区間のみで TD 損失を計算する学習法を検証する実験。モデル構造はベースライン（EXP003）と同一で、変更点は学習ループのみ。詳細は `EXP002/exp_summary.md` 参照。
 - `paper.md` — 研究論文の Markdown 版
 - `tex/` — 研究論文の LaTeX 版
   - `main.tex` — `paper.md` の LaTeX 版
