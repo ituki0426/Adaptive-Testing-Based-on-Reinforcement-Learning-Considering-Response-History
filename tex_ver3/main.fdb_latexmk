@@ -1,11 +1,11 @@
 # Fdb version 3
-["dvipdf"] 1781117947 "main.dvi" "main.pdf" "main" 1781117955
-  "main.dvi" 1781117946 50400 b68a75860eb2654d26095eb76dac78be "latex"
+["dvipdf"] 1781118951 "main.dvi" "main.pdf" "main" 1781118960
+  "main.dvi" 1781118951 48692 b8ee8b8fe72ac7e71364aba3ea5603ae "latex"
   (generated)
   "main.pdf"
-["latex"] 1781117946 "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver2/main.tex" "main.dvi" "main" 1781117955
+["latex"] 1781118951 "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex" "main.dvi" "main" 1781118960
   "/etc/texmf/web2c/texmf.cnf" 1754708003 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver2/main.tex" 1781117946 33922 50f0f868a7711ec10cb6d3fe994c79b0 ""
+  "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex" 1781118950 31474 b7e3b71fad86d93a6e3352374568e70d ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/ptex-fonts/standard/goth10.tfm" 1463434352 1196 5981e79c37b2cfd27b3612a6783cd4b6 ""
@@ -79,16 +79,16 @@
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/web2c/eptex/platex.fmt" 1770016702 1533885 2b952587865f8d71075c715654f2788a ""
-  "img/RL.png" 1781016884 340167 9fc0b855f2969d846be51439e416e104 ""
-  "img/dqn_training_flow.png" 1780990486 1192440 d1d9c2e9dc3ff60b7a1e05ef8e791e3d ""
-  "img/drqn_arch.png" 1780990486 1001463 8e141508007e95f530476ddc5a27d0d2 ""
-  "img/mdp_flow.png" 1780990487 1105563 e37a99ffb3b1a7f90b91ba30345ad8bf ""
-  "img/plot_results_bias.png" 1780991778 134979 961c24f9873e8978798b08689cc8bd86 ""
-  "img/plot_results_mae.png" 1780991779 121872 6e3fb202a982137cc03407a4624fb662 ""
-  "img/plot_results_rmse.png" 1780991778 126901 b8beee01b27a5225b7efab073b3b068d ""
-  "jsaisig.sty" 1780990487 988 d733732b5ea45cbbd2b4066c1c2af1d4 ""
-  "main.aux" 1781117946 5385 e8a02395d0cd16ad9743ae5742d56d70 "latex"
-  "main.tex" 1781117946 33922 50f0f868a7711ec10cb6d3fe994c79b0 ""
+  "img/RL.png" 1781118273 340167 9fc0b855f2969d846be51439e416e104 ""
+  "img/dqn_training_flow.png" 1781118273 1192440 d1d9c2e9dc3ff60b7a1e05ef8e791e3d ""
+  "img/drqn_arch.png" 1781118273 1001463 8e141508007e95f530476ddc5a27d0d2 ""
+  "img/mdp_flow.png" 1781118273 1105563 e37a99ffb3b1a7f90b91ba30345ad8bf ""
+  "img/plot_results_bias.png" 1781118273 134979 961c24f9873e8978798b08689cc8bd86 ""
+  "img/plot_results_mae.png" 1781118273 121872 6e3fb202a982137cc03407a4624fb662 ""
+  "img/plot_results_rmse.png" 1781118273 126901 b8beee01b27a5225b7efab073b3b068d ""
+  "jsaisig.sty" 1781118273 988 d733732b5ea45cbbd2b4066c1c2af1d4 ""
+  "main.aux" 1781118951 5385 6ba7f5ed019604dbe9815cfe54d73c45 "latex"
+  "main.tex" 1781118950 31474 b7e3b71fad86d93a6e3352374568e70d ""
   (generated)
   "main.aux"
   "main.dvi"

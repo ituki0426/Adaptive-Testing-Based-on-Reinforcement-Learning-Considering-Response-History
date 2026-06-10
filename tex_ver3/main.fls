@@ -1,4 +1,4 @@
-PWD /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver2
+PWD /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3
 INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
@@ -6,7 +6,7 @@ INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/eptex/platex.fmt
-INPUT /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver2/main.tex
+INPUT /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex
 OUTPUT main.log
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
