@@ -1,0 +1,10 @@
+PWD /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver2
+INPUT /var/lib/texmf/web2c/luahbtex/lualatex.fmt
+INPUT ./tmp.tex
+OUTPUT tmp.log
+INPUT /usr/share/texlive/texmf-dist/tex/latex/latexconfig/lualatexquotejobname.lua
+INPUT /usr/share/texlive/texmf-dist/tex/latex/base/ltluatex.lua
+INPUT /usr/share/texlive/texmf-dist/tex/latex/l3kernel/expl3.lua
+INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
+INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
+INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
