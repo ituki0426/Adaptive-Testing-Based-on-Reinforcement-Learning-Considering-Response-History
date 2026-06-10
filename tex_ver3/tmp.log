@@ -1,0 +1,43 @@
+This is LuaHBTeX, Version 1.14.0 (TeX Live 2022/dev/Debian)  (format=lualatex 2026.2.2)  11 JUN 2026 03:56
+ restricted system commands enabled.
+**tmp.tex
+(./tmp.tex
+LaTeX2e <2021-11-15> patch level 1
+[\directlua]:1: module 'luaotfload-main' not found:
+	no field package.preload['luaotfload-main']
+	[kpse lua searcher] file not found: 'luaotfload-main'
+Error in luaotfload: reverting to OT1 L3 programming layer <2022-01-21>
+Inserting `tracingstacklevels' at position 1 in `input_level_string'.
+(/usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
+
+! LaTeX Error: This file needs format `pLaTeX2e'
+               but this is `LaTeX2e'.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.16 \NeedsTeXFormat{pLaTeX2e}
+                            
+? 
+! Emergency stop.
+ ...                                              
+                                                  
+l.16 \NeedsTeXFormat{pLaTeX2e}
+                            
+The current input file will not be processed further,
+because it was written for some other flavor of TeX.
+You're in trouble here.  Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+
+Here is how much of LuaTeX's memory you used:
+ 42 strings out of 477805
+ 100000,383344 words of node,token memory allocated 279 words of node memory still in use:
+   1 hlist, 1 dir, 39 glue_spec, 2 if_stack nodes
+   avail lists: 2:10,3:3,4:1
+ 20848 multiletter control sequences out of 65536+600000
+ 14 fonts using 591679 bytes
+ 25i,0n,33p,85b,17s stack positions out of 5000i,500n,10000p,200000b,80000s
+!  ==> Fatal error occurred, no output PDF file produced!

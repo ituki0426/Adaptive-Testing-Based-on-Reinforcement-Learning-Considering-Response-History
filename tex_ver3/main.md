@@ -1,0 +1,267 @@
+# 回答履歴を考慮した強化学習に基づく適応型テスト
+
+**Adaptive Testing Based on Reinforcement Learning Considering Response History**
+
+柴沼 厳・宇都 雅輝（電気通信大学）
+
+---
+
+**Abstract:** 項目反応理論（Item Response Theory: IRT）に基づくコンピュータ適応型テスト（Computerized Adaptive Testing: CAT）では，受検者の能力推定の効率性が項目選択手法に強く依存する．一般的な項目選択手法としてはフィッシャー情報量最大化による方法が知られているが，近年，深層強化学習を用いたDeep Q-Network（DQN）に基づく項目選択手法が提案され，能力推定の精度と効率性の改善が報告されている．しかし，従来のDQNに基づく手法では，強化学習の状態変数として現時点での能力推定値のみを用いるため，受検者のこれまでの回答パターンに含まれる情報を十分に活用できていない．そこで本研究では，DQNに基づくCATを部分観測マルコフ決定過程として再定式化し，受検者の回答履歴を状態として利用する Deep Recurrent Q-Networkに基づく項目選択戦略を提案する．シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．
+
+---
+
+## 1. はじめに
+
+コンピュータ適応型テスト（Computerized Adaptive Testing: CAT）は，出題される項目が受検者の回答行動に応じて適応的に変化するテスト方式であり，コンピュータを用いた試験（Computer-based Testing）において広く利用されている．一般にCATは項目反応理論（Item Response Theory: IRT）の利用を前提に設計されることが多い [van der Linden, 2016]．IRTに基づくCATでは，受検者に項目を出題して反応データが得られるために，IRTに基づいて受検者の能力を推定し，その能力に適した項目が次の項目として選択・出題される．このような適応的な出題機構により，CATは従来の固定項目型のテスト形式と比べて，より少ない項目数で受検者の能力を高精度に推定できる利点を有する [Frey, 2023; Wainer et al., 2000]．
+
+他方で，CATにおける能力測定の効率性は，項目選択手法に強く依存するため，その手法開発が重要な研究テーマとなる．最も標準的な項目選択手法としては，フィッシャー情報量を最大化する項目を選択する最大フィッシャー情報量手法（Maximum Fisher Information: MFI）が知られている [Lord, 1980]．MFIは現在の能力推定値に対する漸近誤差分散の逆数を最大化するという原理に基づくが，暫定の能力推定値が真の能力値から大きく乖離している場合などでは，適切な項目を選択できないといった問題が知られている [Chang & Ying, 1996]．他方で，この問題への対処を目的として，尤度重み付きフィッシャー情報量（Fisher Information Weighted by the Likelihood: FIWL）[Veerkamp & Berger, 1997] や，尤度重み付きKullback-Leibler情報量（Kullback-Leibler information weighted by the Posterior: KLP）[Chang & Ying, 1996] などに基づく項目選択手法も提案されてきた．
+
+しかし，このような従来の項目選択手法には，共通する二つの課題が残る．一つ目の課題としては，全体最適ではなく局所最適な項目選択を行う点が挙げられる．これは，次の1項目の選択行動のみを最適化対象としており，その先の項目選択全体の影響が考慮されないために生じる課題である．二つ目の課題は，項目選択の方略をデータドリブンで柔軟に構築できない点である．対象の項目集合に対する過去の受検者集団の反応データが得られる場合，そのデータを用いて能力推定の効率や精度を最大化する項目選択方略を設計できる可能性があるが，それらがMFIやFIWL，KLPなどに基づく選択手法と一致する保証はない．
+
+これらの課題を解決するアプローチの一つとして，近年，強化学習に基づく項目選択手法が提案されている [Ghosh & Lan, 2021; Nurakhmetov, 2019; Shin & Bulut, 2022; Wang et al., 2024]．これらの手法では，過去の項目反応データから動的に項目選択方略を学習できるとともに，将来の項目選択全体で得られる情報量の期待値を最大化するように項目を選択するため，局所最適に留まらない項目選択が可能となる．強化学習に基づく最新の項目選択手法の一つとして，Wang et al. [2024] は深層強化学習を用いたDeep Q-Network（DQN）に基づく項目選択手法を提案している．この手法では，項目選択問題をマルコフ決定過程（Markov Decision Process: MDP）として定式化し，DQNによるQ関数（行動価値関数）の近似を通して，項目選択を実現している．シミュレーション実験と実データ実験において，この手法はMFIをはじめとする従来手法より高性能を達成している．
+
+しかし，上記のDQNに基づく従来手法では，DQN内で状態変数として扱われる情報が，IRTに基づく1次元の能力推定値のみとなっており，当該受検者のそれまでの項目反応履歴が利用できない．これは，過去の項目反応履歴が1次元の能力推定値に集約的に表現可能な場合（言い換えると，能力推定に利用しているIRTモデルが項目反応行動を完全に説明可能な場合）には妥当であるが，そうでない場合には，能力推定値に集約できない項目反応情報を取りこぼしてしまい，そのことが学習される項目選択方略の性能に影響を与える可能性がある．そこで本研究では，この課題を解決するために，CATを部分観測マルコフ決定過程（partially observable Markov decision process: POMDP）として再定式化し，Deep Recurrent Q-Network（DRQN）によるQ関数近似に基づいて項目反応履歴を考慮した項目選択を実現する手法を提案する．シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．
+
+---
+
+## 2. 項目反応理論に基づくコンピュータ適応型テスト
+
+本節では，IRTに基づくCATの一般的な方法論について概説する．
+
+### 2.1 IRTモデル
+
+本研究では，CATにおいて能力推定や項目選択に使用されるIRTモデルとして，代表的な二値反応モデルの一つである3パラメータロジスティックモデル（3PLM）の利用を想定する．3PLMでは項目 $i$ に対する受検者の正答確率を次式で定義する．
+
+$$P_i(\theta) = c_i + \frac{1 - c_i}{1 + \exp[-a_i(\theta - b_i)]}$$
+
+ここで，$\theta$ は受検者の能力，$a_i$ は識別力パラメータ，$b_i$ は困難度パラメータ，$c_i$ は推測パラメータを表す．以降では，$a_i$，$b_i$，$c_i$を合わせて項目特性値と呼ぶ．
+
+CATでは，項目特性値が予め推定された項目集合（項目バンクと呼ぶ）を用意しておき，そこから受検者にあった項目を適応的に出題する．具体的には，受検者に項目を出題して回答が得られるたびに，IRTに基づいて受検者の能力を推定し，その能力に適した項目を次の項目として選択・出題する．なお，項目バンク中の項目特性値の推定は，事前テストなどを通して得られた項目反応データから，周辺最尤推定法などで行われることが一般的である．また，CATの過程での能力の逐次推定には，最尤法やベイズ推定法が採用されることが一般的である．
+
+### 2.2 フィッシャー情報量最大化に基づく項目選択手法
+
+項目選択はCATによる能力推定の効率性や精度に強く影響する中核的な機構として位置付けられる．代表的な手法であるMFIでは，フィッシャー情報量を最大化するように項目を選択する．3PLMを前提とすると，項目 $i$ に対するフィッシャー情報量は次式で定義される．
+
+$$I_i(\theta) = \frac{a_i^2 (1 - c_i)}{[c_i + \exp(a_i(\theta - b_i))][1 + \exp(-a_i(\theta - b_i))]^2}$$
+
+したがって，$l-1$項目出題した時点での受検者の能力推定値を$\hat{\theta}_l$，その時点での未出題の項目集合を$B_l$とすると，MFIに基づく$l$項目目の項目選択方略は次式で定義される．
+
+$$i_l = \mathop{\rm argmax}\limits_{i \in B_l} I_i(\hat{\theta}_l)$$
+
+> **[DRAFT NOTE]** 尤度で重み付けしたフィッシャー情報量を最大化する．項目選択規則は次式で定義される．
+>
+> $$i_l = \mathop{\rm argmax}\limits_{i \in B_l} \int_{-\infty}^{\infty} I_i(\theta) L(\theta)\, d\theta$$
+>
+> ここで $L(\theta)$ は，それまでの回答パターンに基づく尤度関数である．FIWL は推定特性値の不確実性を考慮するため，テスト序盤における MFI の弱点を補う．実装では，最初の項目は MFI で選択し，2問目以降に FIWL を適用する．
+
+しかし，1章で述べた通り，このような従来の項目選択手法の課題として，1）局所最適な選択に陥る点と，2）項目選択の方略をデータドリブンで柔軟に構築できない点が残る．他方で，これらの課題を解決するアプローチとして，強化学習に基づく項目選択手法が提案されている [Ghosh & Lan, 2021; Nurakhmetov, 2019; Shin & Bulut, 2022; Wang et al., 2024]．次節では，最新の手法の一つであり，本研究のベースラインとするWang et al. [2024] の手法を紹介する．
+
+### 2.3 強化学習に基づく項目選択手法
+
+強化学習とは図の様にエージェントが環境と相互作用しながら、将来にわたる報酬の重み付き和を最大化するような方策を学習する枠組みである。
+
+方策とは、現在の状態に基づいてどのような行動を行うかを確率的に定めるものであり、エージェントとは現在の状態と方策に基づき行動を選択するものである。環境とはエージェントの行動、状態に基づき報酬と次状態を決定するものである。
+
+強化学習において、環境は数理モデルによって記述される。そこでWang ら [2024] は，CAT の項目選択問題をMDPとして定式化した．
+
+MDPは逐次意思決定問題の数学的枠組みとして広く用いられる、次の状態は現在の状態と行動によってのみ決まるというマルコフ性を仮定したモデルである。
+
+Wang ら [2024]は、MDPを用いて項目選択問題を次のように再定義した。
+
+- **状態**：現在の能力推定値 $\hat{\theta}_l$
+- **行動**：次に出題する項目（$i_l \in B_l$）の選択行動
+- **報酬**：項目 $i_l$ のフィッシャー情報量 $I_{i_l}(\theta)$
+- **環境**：IRTに基づく受検者の回答生成と能力推定
+
+![MDPベースの項目選択手法のフローチャート](img/mdp_flow.png)
+
+強化学習で広く使われるアルゴリズムの一つであるQ学習は方策を直接学習するのではなく、Q関数と呼ばれる特定の状態においてある行動を取ったときに得られる期待報酬の総和を表す関数を学習することで最適な方策を導出するアルゴリズムである。
+
+Q関数は次の式~で定義される
+
+$$Q^\pi(\hat{\theta}_l, i_l) = \mathbb{E}_\pi \left[ I_{i_l}(\hat{\theta}_l) + \sum_{k=l+1}^{L} \gamma^{k-l} I_{i_k}(\hat{\theta}_k) \mid \hat{\theta}_l, i_l \right]$$
+
+ここで $\gamma$ は割引率，$L$ はテスト長である．
+
+Wang ら [2024]は、このQ関数をニューラルネットワークで近似するDeep Q-Network（DQN）(論文:Volodymyr Mnih et al. (2015))を用いて、項目選択方略を学習する手法を提案した。
+
+DQNとは、モデルへの入力を状態とし、損失関数を次の式~として学習することでQ関数を近似するアルゴリズムである。
+
+> **[DRAFT NOTE]** \[前の説明とここからの説明にギャップがある．Q関数の導入が唐突すぎる．またQ関数を定義して終わりでは意味不明なので，全体像との対応関係がより明確になるようにQ関数の役割と説明を書き直すこと．つまり，どのようにこのQ関数を含めた全体の最適化がなされるのかの説明が必要である．3.3ほど具体的でなくていいが，使用されるアルゴリズムとその概要的な考え方だけ簡潔に述べること．\]
+>
+> Q 関数は，現在の状態と行動の組に対して，テスト終了までに得られる割引累積報酬の期待値を表す．
+>
+> $$Q^\pi(\hat{\theta}_l, i_l) = \mathbb{E}_\pi \left[ I_{i_l}(\hat{\theta}_l) + \sum_{k=l+1}^{L} \gamma^{k-l} I_{i_k}(\hat{\theta}_k) \mid \hat{\theta}_l, i_l \right]$$
+>
+> ここで $\gamma$ は割引率，$L$ はテスト長である．DQN は Q-Network $Q(\hat{\theta}_l, i; \boldsymbol{\theta})$ を用いてこの Q 関数を近似する．
+
+他方で，このDQNに基づく手法は，状態がIRTに基づく1次元の能力推定値のみとなっており，当該受検者のそれまでの項目反応履歴は利用できないという課題を有する．これは，過去の項目反応履歴が1次元の能力推定値に集約できる，すなわち，能力推定に利用しているIRTモデルが項目反応行動を完全に説明可能な場合には妥当であるが，そうでない場合には，有益な情報を取りこぼす可能性があり，そのことは学習される項目選択方略の性能に影響を与えうる．
+
+---
+
+## 3. 提案手法
+
+本研究では，上記の課題を解決するために，各受検者の項目反応履歴に基づいて項目選択を実現する強化学習ベースの項目選択手法を提案する．具体的には，CATをPOMDPとして再定式化し，DRQNによるQ関数近似によってこれを実現する．
+
+### 3.1 POMDPとしての再定式化
+
+> **[DRAFT NOTE]** Wang らの MDP 定式化では，状態を推定特性値 $\hat{\theta}_l$ とする．しかし，推定特性値は真の特性値 $\theta$ の不完全な推定であり，特にテスト序盤では大きな誤差を含む．つまり，エージェントは真の状態を直接観測できず，観測される回答の正誤を通じて間接的に推論するしかない．これは部分観測マルコフ決定過程（POMDP）の構造そのものである．\[この言い方をしてしまったら，2.3のWangらの方法だって部分観測マルコフモデルでは？\]
+
+> **[DRAFT NOTE]** これ以降はSlackでの私のコメントを元に自分で再度よく推敲すること．
+
+そこで本研究では，CAT の項目選択問題を次のような POMDP として再定式化する．
+
+- **真の状態**：受検者の真の特性値 $\theta$
+- **観測**：各項目への回答 $o_l \in \{0,1\}$
+- **行動**：選択する項目 $i_l \in B_l$
+- **報酬**：フィッシャー情報量 $I_{i_l}(\theta)$
+
+POMDP において，エージェントは観測履歴 $h_l=(o_1,\ldots,o_{l-1})$ から真の状態に関する信念を構築し，行動を選択する．
+
+### 3.2 DRQNによるQ関数の近似
+
+POMDP を解くため，Hausknecht と Stone [2015] が提案した DRQN を用いる．DRQN は DQN の全結合層を LSTM に置き換えたアーキテクチャであり，過去の観測系列を逐次処理することで，部分観測下での Q 値推定を可能にする．
+
+本研究における DRQN のアーキテクチャは以下の構成である．
+
+1. **Embedding 層**：回答を3カテゴリ（0: 誤答，1: 正答，2: 開始トークン）の埋め込み表現に変換する．
+2. **LSTM 層**：埋め込み系列を逐次処理し，隠れ状態を更新する．
+3. **全結合出力層**：LSTM の出力からアイテムバンク内の全項目に対する Q 値を出力する．
+
+![DRQNのアーキテクチャ．回答系列をEmbedding層で埋め込み表現に変換し，LSTMで逐次処理した後，各項目のQ値を出力する．](img/drqn_arch.png)
+
+決定ステップ $l$ において，DRQN は開始トークンとこれまでの回答系列 $(\text{START}, o_1, o_2, \ldots, o_{l-1})$ を入力として受け取り，LSTM が内部状態を逐次更新する．これにより，推定特性値というスカラー情報に集約せずに，回答パターンの時系列的な特徴を直接利用して Q 値を推定する．
+
+**表1: DQN と DRQN の比較**
+
+| | DQN | DRQN |
+|---|---|---|
+| 定式化 | MDP | POMDP |
+| 状態表現 | 推定特性値 $\hat{\theta}_l$ | 回答履歴 $(o_1,\ldots,o_{l-1})$ |
+| ネットワーク | 全結合ネットワーク | Embedding + LSTM + 全結合 |
+| 入力次元 | 1 | 可変長系列 |
+
+### 3.3 学習アルゴリズム
+
+DRQN の学習は DQN と同様に，$\varepsilon$-greedy 法による方策選択，ターゲットネットワーク，および経験再生（experience replay）の3つの手法を用いる [Mnih et al., 2013; 2015]．
+
+ただし，Wang らの DQN では経験再生の単位がステップごとの遷移 $\{\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1}\}$ であるのに対し，本研究の DRQN では経験再生の単位を1エピソード（1人の受検者のテスト全体）とする．これは，LSTM の隠れ状態がエピソード内の回答系列に依存しており，系列の途中の単一遷移だけを抜き出すと隠れ状態を正しく再現できないためである．
+
+学習の手順は以下の通りである．
+
+1. 学習用の特性値 $\theta_n$（$n = 1,\ldots,N_{\mathrm{training}}$）を生成する．
+2. 各受検者について，テスト長 $L$ の CAT を実行し，各ステップの回答，行動，報酬を記録する．
+3. エピソード単位でリプレイメモリに保存する．
+4. ミニバッチをサンプリングし，次の損失関数で Q-Network のパラメータを更新する．
+
+$$\mathcal{L} = \left[ r_l + \gamma \max_{i \in B_{l+1}} Q_{\mathrm{target}}(s_{l+1}, i; \boldsymbol{\theta}') - Q_{\mathrm{action}}(s_l, i_l; \boldsymbol{\theta}) \right]^2$$
+
+さらに，$\tau$ 回の更新ごとにターゲットネットワークのパラメータを同期し，定期的にバリデーションを行って最良モデルを保存する．
+
+![DQNベースの項目選択戦略の学習過程．DRQNでは状態表現が回答履歴に置き換わり，経験再生の単位がステップからエピソードへ変更される．](img/dqn_training_flow.png)
+
+---
+
+## 4. シミュレーション実験
+
+### 4.1 実験設定
+
+**アイテムバンクの生成**
+
+Wang ら [2024] のシミュレーション設定に基づき，各アイテムバンクを200項目で生成した．項目パラメータの分布は以下の通りである．
+
+- 識別力：$a \sim N(1.2, 0.25)$（$a > 0$）
+- 困難度：$b \sim N(0, 1)$
+- 疑似推測：$c \sim N(0.25, 0.02)$（$0 < c < 1$）
+
+パラメータ間に相関のないアイテムバンク（$r_{ab}=0$）と相関のあるアイテムバンク（$r_{ab}=0.5$）の2種類を各10バンク，計20バンク生成した．各バンクに対して，5,000名の受検者の真の特性値を標準正規分布 $N(0,1)$ から生成した．
+
+**比較手法**
+
+以下の4手法を比較する．
+
+1. **MFI**：最大フィッシャー情報量法 [Lord, 1980]
+2. **FIWL**：尤度重み付きフィッシャー情報量法 [Veerkamp & Berger, 1997]
+3. **DQN**：Deep Q-Network に基づく手法 [Wang et al., 2024]
+4. **DRQN**：Deep Recurrent Q-Network に基づく手法（提案手法）
+
+MFI と FIWL の実装には R パッケージ catR [Magis & Barrada, 2017] を用いる．
+
+**強化学習手法のハイパーパラメータ**
+
+**表2: DQN と DRQN のハイパーパラメータ**
+
+| パラメータ | DQN | DRQN |
+|---|---|---|
+| ネットワーク構造 | 1→50→30→200 | Embedding(3,16)→LSTM(64)→Linear(200) |
+| 学習データ数 $N_{\mathrm{training}}$ | 1,000 | 1,000 |
+| テスト長 $L$ | 40 | 40 |
+| 割引率 $\gamma$ | 0.1 | 0.1 |
+| リプレイメモリサイズ $N_D$ | 1,000 | 1,000 |
+| ミニバッチサイズ $m$ | 128 | 128 |
+| ターゲット更新間隔 $\tau$ | 40 | 40 |
+| 学習率 | 0.001 | 0.001 |
+| $\varepsilon$ | 0.1 | 0.1 |
+| バリデーション間隔 | 50 | 50 |
+| バリデーション数 | 200 | 200 |
+| 学習データ分布 | $N(0,1)$ | $N(0,1)$ |
+| 報酬 | $I_{i_l}(\theta)$ | $I_{i_l}(\theta)$ |
+
+DQN では全てのネットワークパラメータに正値制約を適用し，Q 値が正であることを保証する．DRQN では出力層の重みとバイアスのみに正値制約を適用し，さらに勾配クリッピング（最大ノルム 1.0）を導入して学習を安定化させる．
+
+**評価指標**
+
+以下の3指標を用いて，推定特性値の回復精度を評価する．
+
+$$\mathrm{Bias} = \frac{1}{N} \sum_{n=1}^{N} (\hat{\theta}_n - \theta_n)$$
+
+$$\mathrm{RMSE} = \sqrt{\frac{1}{N} \sum_{n=1}^{N} (\hat{\theta}_n - \theta_n)^2}$$
+
+$$\mathrm{MAE} = \frac{1}{N} \sum_{n=1}^{N} \lvert \hat{\theta}_n - \theta_n \rvert$$
+
+### 4.2 結果
+
+無相関アイテムバンク（$r_{ab}=0$，バンク1）における各ステップの推定精度の推移を図1〜図3に示す．
+
+**図1: 各ステップにおける RMSE の推移（無相関バンク，バンク1）**
+
+![各ステップにおけるRMSEの推移](img/plot_results_rmse.png)
+
+**図2: 各ステップにおける MAE の推移（無相関バンク，バンク1）**
+
+![各ステップにおけるMAEの推移](img/plot_results_mae.png)
+
+**図3: 各ステップにおける Bias の推移（無相関バンク，バンク1）**
+
+![各ステップにおけるBiasの推移](img/plot_results_bias.png)
+
+DRQN は40問選択時点において RMSE = 0.200 を達成し，MFI（RMSE = 0.342）と比較して約42%，DQN（RMSE = 0.254）と比較して約21%の改善を示した．MAE についても同様の傾向が確認された．
+
+図1に示すように，MFI は初期ステップから安定して RMSE が低下する．DQN もテスト序盤から比較的低い RMSE を示す．一方，DRQN はテスト序盤では MFI より高い RMSE を示すが，ステップ数が増加するにつれて急速に改善し，ステップ25以降では他の手法を上回る精度を達成する．これは，十分な回答履歴が蓄積されることで，LSTM が回答パターンから特性値の情報をより正確に抽出できるようになるためと考えられる．
+
+---
+
+## 5. おわりに
+
+本研究では，IRT に基づく CAT の項目選択問題を POMDP として再定式化し，回答履歴を状態として利用する DRQN に基づく項目選択戦略を提案した．シミュレーション実験により，提案手法は40問選択時点において既存の MFI および DQN を上回る推定精度を達成することが示された．
+
+提案手法の利点として，回答パターンの直接利用と，CAT を部分観測問題として扱う理論的整合性が挙げられる．一方で，テスト序盤の精度，バンク間の一般化，実データによる検証は今後の課題である．特に序盤性能の補完には，MFI 等の情報量基準手法を併用するハイブリッド戦略の検討が有望である．
+
+---
+
+## 参考文献
+
+- Chang, H.-H. & Ying, Z. (1996). A global information approach to computerized adaptive testing. *Applied Psychological Measurement*, 20(3), 213–229.
+- Frey, A. (2023). Computerized adaptive testing. In R. J. Mislevy & H. Jiao (Eds.), *The Oxford Handbook of Educational Assessment*. Oxford University Press.
+- Ghosh, A. & Lan, A. (2021). BOBCAT: Bilevel optimization-based computerized adaptive testing. *arXiv preprint arXiv:2108.07386*.
+- Hausknecht, M. & Stone, P. (2015). Deep recurrent Q-learning for partially observable MDPs. *arXiv preprint arXiv:1507.06527*.
+- Lord, F. M. (1980). *Applications of Item Response Theory to Practical Testing Problems*. Erlbaum.
+- Magis, D. & Barrada, J. R. (2017). Computerized adaptive testing with R: Recent updates of the package catR. *Journal of Statistical Software*, 76(1), 1–19.
+- Mnih, V., Kavukcuoglu, K., Silver, D., et al. (2013). Playing Atari with deep reinforcement learning. *arXiv preprint arXiv:1312.5602*.
+- Mnih, V., Kavukcuoglu, K., Silver, D., et al. (2015). Human-level control through deep reinforcement learning. *Nature*, 518(7540), 529–533.
+- Nurakhmetov, D. (2019). Reinforcement learning applied to adaptive classification testing. In B. P. Veldkamp & C. Sluijter (Eds.), *Theoretical and Practical Advances in Computer-based Educational Measurement* (pp. 325–336). Springer.
+- Shin, J. & Bulut, O. (2022). Building an intelligent recommendation system for personalized test scheduling in computerized assessments: A reinforcement learning approach. *Behavior Research Methods*, 54(1), 216–232.
+- van der Linden, W. J. (2016). *Handbook of Item Response Theory*. CRC Press.
+- Veerkamp, W. J. J. & Berger, M. P. F. (1997). Some new item selection criteria for adaptive testing. *Journal of Educational and Behavioral Statistics*, 22(2), 203–226.
+- Wainer, H., Dorans, N. J., Eignor, D., et al. (2000). *Computerized Adaptive Testing: A Primer* (2nd ed.). Erlbaum.
+- Wang, P., Liu, H. & Xu, M. (2024). An adaptive testing item selection strategy via a deep reinforcement learning approach. *Behavior Research Methods*, 56, 8695–8714.
