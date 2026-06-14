@@ -22,77 +22,57 @@
 \@writefile{toc}{\contentsline {section}{\numberline {2}項目反応理論に基づくコンピュータ適応型テスト}{2}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}IRTモデル}{2}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2}フィッシャー情報量最大化に基づく項目選択手法}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}強化学習に基づく項目選択手法}{2}{}\protected@file@percent }
 \citation{wang2024}
 \citation{wang2024}
 \citation{wang2024}
 \citation{mnih2015}
+\citation{wang2024}
+\citation{wang2024}
+\citation{wang2024}
+\citation{hausknecht2015}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces 強化学習におけるエージェントと環境の相互作用}}{3}{}\protected@file@percent }
 \newlabel{fig:RL}{{1}{3}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces MDPベースの項目選択手法のフローチャート}}{3}{}\protected@file@percent }
 \newlabel{fig:mdp_flow}{{2}{3}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}強化学習に基づく項目選択手法}{3}{}\protected@file@percent }
 \newlabel{eq:q_function}{{4}{3}}
 \newlabel{eq:td_loss}{{5}{3}}
 \@writefile{toc}{\contentsline {section}{\numberline {3}提案手法}{3}{}\protected@file@percent }
 \citation{hausknecht2015}
-\citation{hausknecht2015}
-\citation{mnih2013}
-\citation{mnih2015}
+\citation{wang2024}
 \citation{wang2024}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces DRQN のアーキテクチャ．回答系列を Embedding 層で埋め込み表現に変換し，LSTM で逐次処理した後，各項目の Q 値を出力する．}}{4}{}\protected@file@percent }
 \newlabel{fig:drqn_arch}{{3}{4}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}DRQN による Q 関数の近似}{4}{}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces DQN と DRQN の比較}}{4}{}\protected@file@percent }
-\newlabel{tab:dqn_drqn}{{1}{4}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces DQN ベースの項目選択戦略の学習過程．DRQN では状態表現が回答履歴に置き換わり，経験再生の単位がステップからエピソードへ変更される．}}{4}{}\protected@file@percent }
-\newlabel{fig:dqn_training}{{4}{4}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}学習アルゴリズム}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}シミュレーション実験}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}実験設定}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{アイテムバンクの生成}{4}{}\protected@file@percent }
 \citation{lord1980}
-\citation{veerkamp1997}
 \citation{wang2024}
-\citation{magis2017}
-\bibcite{barnhart2007}{1}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces DQN と DRQN のハイパーパラメータ}}{5}{}\protected@file@percent }
-\newlabel{tab:hyperparams}{{2}{5}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}シミュレーション実験}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}実験設定}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{アイテムバンクの生成}{5}{}\protected@file@percent }
+\citation{hausknecht2015}
+\citation{wang2024}
+\bibcite{chang1996}{1}
+\bibcite{dodd1990}{2}
+\bibcite{frey2023}{3}
 \@writefile{toc}{\contentsline {paragraph}{比較手法}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{強化学習手法のハイパーパラメータ}{5}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{評価指標}{5}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}結果}{5}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {5}おわりに}{5}{}\protected@file@percent }
-\bibcite{chang1996}{2}
-\bibcite{chen2018}{3}
-\bibcite{dodd1990}{4}
-\bibcite{frey2023}{5}
-\bibcite{ghosh2021}{6}
-\bibcite{han2020}{7}
-\bibcite{hausknecht2015}{8}
-\bibcite{li2021}{9}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces 各ステップにおける RMSE の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{6}{}\protected@file@percent }
-\newlabel{fig:results_rmse}{{5}{6}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces 各ステップにおける MAE の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{6}{}\protected@file@percent }
-\newlabel{fig:results_mae}{{6}{6}}
-\bibcite{li2023}{10}
-\bibcite{lord1980}{11}
-\bibcite{magis2017}{12}
-\bibcite{mnih2013}{13}
-\bibcite{mnih2015}{14}
-\bibcite{nurakhmetov2019}{15}
-\bibcite{shin2022}{16}
-\bibcite{silver2016}{17}
-\bibcite{silver2017}{18}
-\bibcite{sutton2018}{19}
-\bibcite{tan2020}{20}
-\bibcite{tang2019}{21}
-\bibcite{vanderlinden2016}{22}
-\bibcite{veerkamp1997}{23}
-\bibcite{wainer2000}{24}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces 各ステップにおける Bias の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{7}{}\protected@file@percent }
-\newlabel{fig:results_bias}{{7}{7}}
-\bibcite{wang2024}{25}
-\bibcite{weiss1982}{26}
-\bibcite{weiss1984}{27}
-\bibcite{zhang2016}{28}
-\gdef \@abspage@last{8}
+\bibcite{ghosh2021}{4}
+\bibcite{hausknecht2015}{5}
+\bibcite{lord1980}{6}
+\bibcite{mnih2015}{7}
+\bibcite{nurakhmetov2019}{8}
+\bibcite{shin2022}{9}
+\bibcite{vanderlinden2016}{10}
+\bibcite{veerkamp1997}{11}
+\bibcite{wainer2000}{12}
+\bibcite{wang2024}{13}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces 各ステップにおける RMSE の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{6}{}\protected@file@percent }
+\newlabel{fig:results_rmse}{{4}{6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces 各ステップにおける MAE の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{6}{}\protected@file@percent }
+\newlabel{fig:results_mae}{{5}{6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces 各ステップにおける Bias の推移（無相関バンク・有相関バンク，バンク1～3平均）}}{7}{}\protected@file@percent }
+\newlabel{fig:results_bias}{{6}{7}}
+\gdef \@abspage@last{7}

@@ -30,7 +30,7 @@
 	The University of Electro-Communications}
 
 \abstract{
-項目反応理論（Item Response Theory: IRT）に基づくコンピュータ適応型テスト（Computerized Adaptive Testing: CAT）では，受検者の能力推定の効率性が項目選択手法に強く依存する．一般的な項目選択手法としてはフィッシャー情報量最大化による方法が知られているが，近年，深層強化学習を用いたDeep Q-Network（DQN）に基づく項目選択手法が提案され，能力推定の精度と効率性の改善が報告されている．しかし，従来のDQNに基づく手法では，強化学習の状態変数として現時点での能力推定値のみを用いるため，受検者のこれまでの回答パターンに含まれる情報を十分に活用できていない．そこで本研究では，DQNに基づくCATを部分観測マルコフ決定過程として再定式化し，受検者の回答履歴を状態として利用する Deep Recurrent Q-Networkに基づく項目選択戦略を提案する．シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．
+項目反応理論（Item Response Theory: IRT）に基づくコンピュータ適応型テスト（Computerized Adaptive Testing: CAT）では，受検者の能力推定の効率性が項目選択手法に強く依存する．一般的な項目選択手法としてはフィッシャー情報量最大化による方法が知られているが，近年，深層強化学習を用いたDeep Q-Network（DQN）に基づく項目選択手法が提案され，能力推定の精度と効率性の改善が報告されている．しかし，従来のDQNに基づく手法では，強化学習の状態変数として現時点での能力推定値のみを用いるため，受検者のこれまでの回答パターンに含まれる情報を十分に活用できていない．そこで本研究では，DQNに基づくCATを再定式化し，受検者の回答履歴を状態として利用する Deep Recurrent Q-Networkに基づく項目選択戦略を提案する．\textcolor{red}{シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．}
 }
 
 \maketitle
@@ -50,7 +50,7 @@
 この手法では，項目選択問題をマルコフ決定過程（Markov Decision Process: MDP）として定式化し，DQNによるQ関数（行動価値関数）の近似を通して，項目選択を実現している．
 シミュレーション実験と実データ実験において，この手法はMFIをはじめとする従来手法より高性能を達成している．
 
-しかし，上記のDQNに基づく従来手法では，DQN内で状態変数として扱われる情報が，IRTに基づく1次元の能力推定値のみとなっており，当該受検者のそれまでの項目反応履歴が利用できない．これは，過去の項目反応履歴が1次元の能力推定値に集約的に表現可能な場合（言い換えると，能力推定に利用しているIRTモデルが項目反応行動を完全に説明可能な場合）には妥当であるが，そうでない場合には．能力推定値に集約できない項目反応情報を取りこぼしてしまい，そのことが学習される項目選択方略の性能に影響を与える可能性がある．そこで本研究では，この課題を解決するために，CATを部分観測マルコフ決定過程（partially observable Markov decision process: POMDP）として再定式化し，Deep Recurrent Q-Network（DRQN）によるQ関数近似に基づいて項目反応履歴を考慮した項目選択を実現する手法を提案する．シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．
+しかし，上記のDQNに基づく従来手法では，DQN内で状態変数として扱われる情報が，IRTに基づく1次元の能力推定値のみとなっており，当該受検者のそれまでの項目反応履歴が利用できない．これは，過去の項目反応履歴が1次元の能力推定値に集約的に表現可能な場合（言い換えると，能力推定に利用しているIRTモデルが項目反応行動を完全に説明可能な場合）には妥当であるが，そうでない場合には．能力推定値に集約できない項目反応情報を取りこぼしてしまい，そのことが学習される項目選択方略の性能に影響を与える可能性がある．そこで本研究では，この課題を解決するために，CATを受験者の項目反応履歴を状態とした MDP として再定式し，Deep Recurrent Q-Network（DRQN）によるQ関数近似に基づいて項目反応履歴を考慮した項目選択を実現する手法を提案する．\textcolor{red}{シミュレーション実験の結果，40問選択時点において，提案手法は従来手法を上回る推定精度を示した．}
 
 \section{項目反応理論に基づくコンピュータ適応型テスト}
 
@@ -87,9 +87,7 @@ I_i(\theta) =
 i_l = \argmax_{i \in B_l} I_i(\hat{\theta}_l)
 \end{equation}
 
-しかし、MFIではテスト初期などの暫定の能力推定値が真の能力値から大きく乖離している場合には，適切な項目を選択できない可能性がある. 
-
-この問題への対処として、尤度重み付きフィッシャー情報量(FIWL)の積分値を最大化するような項目を選択する項目選択手法が提案されている~\cite{veerkamp1997}．
+しかし,MFIではテスト初期などの暫定の能力推定値が真の能力値から大きく乖離している場合には，適切な項目を選択できない可能性がある. この問題への対処として、尤度重み付きフィッシャー情報量(FIWL)の積分値を最大化するような項目を選択する項目選択手法も提案されている~\cite{veerkamp1997}．
 
 しかし，\ref{sec:intro}章で述べた通り，このような従来の項目選択手法の課題として，1）局所最適な選択に陥る点と，2）項目選択の方略をデータドリブンで柔軟に構築できない点が残る．他方で，これらの課題を解決するアプローチとして，強化学習に基づく項目選択手法が提案されている~\cite{ghosh2021,nurakhmetov2019,shin2022,wang2024}．次節では，最新の手法の一つであり，本研究のベースラインとするWang et al.~\cite{wang2024}の手法を紹介する．
 
@@ -103,13 +101,10 @@ i_l = \argmax_{i \in B_l} I_i(\hat{\theta}_l)
 
 \subsection{強化学習に基づく項目選択手法}
 
-強化学習とは図\ref{fig:RL}のようにエージェントが環境と相互作用しながら，将来にわたる報酬の重み付き和を最大化するような方策を学習する枠組みである．
+強化学習とは図\ref{fig:RL}のようにエージェントが環境と相互作用しながら，将来にわたる報酬の重み付き和を最大化するような方策を学習する枠組みである．方策とは，現在の状態に基づいてどのような行動を行うかを確率的に定めるものであり，エージェントとは現在の状態と方策に基づき行動を選択するものである．環境とはエージェントの行動・状態に基づき報酬と次状態を決定するものである．
 
-方策とは，現在の状態に基づいてどのような行動を行うかを確率的に定めるものであり，エージェントとは現在の状態と方策に基づき行動を選択するものである．環境とはエージェントの行動・状態に基づき報酬と次状態を決定するものである．
+強化学習において，環境は数理モデルによって記述される．そこでWang ら~\cite{wang2024} は，CAT の項目選択問題を MDP として定式化した．MDP は逐次意思決定問題の数学的枠組みとして広く用いられる，次の状態は現在の状態と行動によってのみ決まるというマルコフ性を仮定したモデルである． Wang ら~\cite{wang2024} は，MDP を用いて項目選択問題を次のように定式化した．
 
-強化学習において，環境は数理モデルによって記述される．そこでWang ら~\cite{wang2024} は，CAT の項目選択問題を MDP として定式化した．MDP は逐次意思決定問題の数学的枠組みとして広く用いられる，次の状態は現在の状態と行動によってのみ決まるというマルコフ性を仮定したモデルである．
-
-Wang ら~\cite{wang2024} は，MDP を用いて項目選択問題を次のように定式化した．
 \begin{itemize}
 \item 状態：現在の能力推定値 $\hat{\theta}_l$
 \item 行動：次に出題する項目（$i_l \in B_l$）の選択行動
@@ -136,11 +131,8 @@ I_{i_l}(\hat{\theta}_l)
 \right]
 \label{eq:q_function}
 \end{equation}
-ここで $\gamma$ は割引率，$L$ はテスト長である．
+ここで $\gamma$ は割引率，$L$ はテスト長である．またWang ら~\cite{wang2024} は，このQ関数をニューラルネットワークで近似するDeep Q-Network（DQN）~\cite{mnih2015} を用いて，項目選択方略を学習する手法を提案した．DQN とは，モデルへの入力を状態とし，式~\eqref{eq:td_loss}の損失関数を最小化することでQ関数を近似するアルゴリズムである．
 
-Wang ら~\cite{wang2024} は，このQ関数をニューラルネットワークで近似するDeep Q-Network（DQN）~\cite{mnih2015} を用いて，項目選択方略を学習する手法を提案した．
-
-DQN とは，モデルへの入力を状態とし，式~\eqref{eq:td_loss}の損失関数を最小化することでQ関数を近似するアルゴリズムである．
 \begin{align}
 \mathcal{L}
 = \Bigl[
@@ -154,26 +146,20 @@ r_l + \gamma \max_{i \in B_{l+1}} Q_{\mathrm{target}}(s_{l+1}, i; \bm{\theta}') 
 [前の説明とここからの説明にギャップがある．Q関数の導入が唐突すぎる．またQ関数を定義して終わりでは意味不明なので，もよくわからないので，全体像との対応関係がより明確になるようにQ関数の役割と説明を書き直すこと．つまり．どのようにこのQ関数を含めた全体の最適化がなされるのかの説明が必要であるということです．3.3ほど具体的でなくていいが，使用されるアルゴリズムとのその概要的な考え方だけ簡潔に述べること．]
 }
 
-図\ref{fig:mdp_flow}に，本手法に基づく項目選択のフローチャートを示す．
-
+そして方策には確率 $1-\varepsilon$ で最大のQ値を持つ項目を選択し，確率 $\varepsilon$ でランダムに項目を選択する $\varepsilon$-greedy 法が用いられた．図\ref{fig:mdp_flow}に，Wang ら~\cite{wang2024}の提案手法に基づく項目選択のフローチャートを示す．
 
 他方で，このDQNに基づく手法は，状態がIRTに基づく1次元の能力推定値のみとなっており，当該受検者のそれまでの項目反応履歴は利用できないという課題を有する．これは，過去の項目反応履歴が1次元の能力推定値に集約できる，すなわち，能力推定に利用しているIRTモデルが項目反応行動を完全に説明可能な場合には妥当であるが，そうでない場合には，有益な情報を取りこぼす可能性があり，そのことは学習される項目選択方略の性能に影響を与えうる．
 
 \section{提案手法}
 
-本研究では，上記の課題を解決するために，各受検者の項目反応履歴に基づいて項目選択を実現する強化学習ベースの項目選択手法を提案する．
-
-具体的には,MDPにおける状態を受験者の回答として再定義し,Q関数の近似にDRQNを用いることで,受検者の回答履歴を考慮した項目選択を実現する．
+本研究では，上記の課題を解決するために，各受検者の項目反応履歴に基づいて項目選択を実現する強化学習ベースの項目選択手法を提案する．具体的には,MDPにおける状態を受験者の項目反応履歴として再定式し,Q関数の近似にDRQNを用いることで,受検者の回答履歴を考慮した項目選択を実現する．
 
 \subsection{DRQN による Q 関数の近似}
 
-解答を状態として再定義した MDPを解くために，Hausknecht と Stone~\cite{hausknecht2015} が提案した DRQN を用いる．DRQN は DQN の全結合層を LSTM に置き換えたアーキテクチャであり，過去の観測系列を逐次処理することで，部分観測下での Q 値推定を可能にする．
-
-\textcolor{red}{
-POMDP を解くため，Hausknecht と Stone~\cite{hausknecht2015} が提案した DRQN を用いる．DRQN は DQN の全結合層を LSTM に置き換えたアーキテクチャであり，過去の観測系列を逐次処理することで，部分観測下での Q 値推定を可能にする．
-}
+Wang ら~\cite{wang2024} と同様に，本研究においても ニューラルネットワークを用いて Q関数を近似することを考える. しかし, Wang ら~\cite{wang2024} らの定式化では状態が能力推定値という非系列的な情報であったのに対し, 本研究では状態を受験者の項目反応履歴という系列的な情報として再定式した. そこで 本研究では, 項目反応履歴を状態として再定式した MDPを解くために，Hausknecht と Stone~\cite{hausknecht2015} が提案した DRQN を用いる．DRQN は DQN の最初の全結合層を LSTM に置き換えたアーキテクチャであり，これまでの受験者の回答系列に基づいて各項目の Q関数の推定を行うことができる．
 
 本研究における DRQN のアーキテクチャは以下の構成である．
+
 \begin{enumerate}
 \item Embedding 層：回答を3カテゴリ（0: 誤答，1: 正答，2: 開始トークン）の埋め込み表現に変換する．
 \item LSTM 層：埋め込み系列を逐次処理し，隠れ状態を更新する．
@@ -187,105 +173,109 @@ POMDP を解くため，Hausknecht と Stone~\cite{hausknecht2015} が提案し�
 \label{fig:drqn_arch}
 \end{figure}
 
-決定ステップ $l$ において，DRQN は開始トークンとこれまでの回答系列 $(\text{START}, o_1, o_2, \ldots, o_{l-1})$ を入力として受け取り，LSTM が内部状態を逐次更新する．これにより，推定特性値というスカラー情報に集約せずに，回答パターンの時系列的な特徴を直接利用して Q 値を推定する．
+本研究にて使用する DRQN のアーキテクチャを図\ref{fig:drqn_arch}に示す．図\ref{fig:drqn_arch} から分かるように, DRQNにおいて 埋め込み表現に変換された項目反応履歴は LSTM で逐次処理 される. これにより, 受験者の回答履歴を LSTMが 内部状態として保持することで これまでの回答履歴に基づいた Q関数の推定を行うことができる.
 
-\begin{table}[t]
-\centering
-\caption{DQN と DRQN の比較}
-\label{tab:dqn_drqn}
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{p{0.18\columnwidth}p{0.30\columnwidth}p{0.34\columnwidth}}
-\toprule
- & DQN & DRQN \\
-\midrule
-定式化 & MDP & POMDP \\
-状態表現 & 推定特性値 $\hat{\theta}_l$ & 回答履歴 $(o_1,\ldots,o_{l-1})$ \\
-ネットワーク & 全結合ネットワーク & Embedding + LSTM + 全結合 \\
-入力次元 & 1 & 可変長系列 \\
-\bottomrule
-\end{tabular}
-\end{table}
+%\begin{table}[t]
+%\centering
+%\caption{DQN と DRQN の比較}
+%\label{tab:dqn_drqn}
+%\scriptsize
+%\setlength{\tabcolsep}{3pt}
+%\begin{tabular}{p{0.18\columnwidth}p{0.30\columnwidth}p{0.34\columnwidth}}
+%\toprule
+% & DQN & DRQN \\
+%\midrule
+%定式化 & MDP & POMDP \\
+%状態表現 & 推定特性値 $\hat{\theta}_l$ & 回答履歴 $(o_1,\ldots,o_{l-1})$ \\
+%ネットワーク & 全結合ネットワーク & Embedding + LSTM + 全結合 \\
+%入力次元 & 1 & 可変長系列 \\
+%\bottomrule
+%\end{tabular}
+%\end{table}
+
+次節にて，DRQN の学習アルゴリズムについて説明する．
 
 \subsection{学習アルゴリズム}
 
-DRQN の学習は DQN と同様に，$\varepsilon$-greedy 法による方策選択，ターゲットネットワーク，および経験再生（experience replay）の3つの手法を用いる~\cite{mnih2013,mnih2015}．
+先行研究~\cite{hausknecht2015} に倣い,DRQNの学習には，安定化を目的に 経験再生(Experience Replay) という手法を用いる. 経験再生とは, DRQNで近似された Q関数の値と $\varepsilon$-greedy 法によって生成された項目反応履歴,選択された項目,報酬の系列の3つの情報をリプレイメモリに蓄積した後，ランダムサンプリングして損失関数を最小化することでネットワークのパラメータを更新する手法である.DRQN はエピソード単位, すなわち 1人の受検者のテスト全体を1エピソードとて ネットワークのパラメータを更新する.ただし, 推論時には項目反応履歴を1ステップずつDRQNに入力し,各ステップでのQ値を計算することで,次の項目選択を行う．また, 方策には Wang ら~\cite{wang2024} と同様に$\varepsilon$-greedy 法を用いる.
 
-ただし，Wang らの DQN では経験再生の単位がステップごとの遷移 $\{\hat{\theta}_l, i_l, I_{i_l}(\hat{\theta}_l), \hat{\theta}_{l+1}\}$ であるのに対し，本研究の DRQN では経験再生の単位を1エピソード（1人の受検者のテスト全体）とする．これは，LSTM の隠れ状態がエピソード内の回答系列に依存しており，系列の途中の単一遷移だけを抜き出すと隠れ状態を正しく再現できないためである．
+学習の手順は以下の様にまとめることができる.
 
-学習の手順は以下の通りである．
 \begin{enumerate}
-\item 学習用の特性値 $\theta_n$（$n = 1,\ldots,N_{\mathrm{training}}$）を生成する．
-\item 各受検者について，テスト長 $L$ の CAT を実行し，各ステップの回答，行動，報酬を記録する．
-\item エピソード単位でリプレイメモリに保存する．
-\item ミニバッチをサンプリングし，式~\eqref{eq:td_loss}の損失関数で Q-Network のパラメータを更新する．
-さらに，$\tau$ 回の更新ごとにターゲットネットワークのパラメータを同期し，定期的にバリデーションを行って最良モデルを保存する．
+\item 学習用の真の特性値 $\theta_n \sim N(0,1)$（$n = 1,\ldots,N_{\mathrm{training}}$）を事前に一括生成する．
+
+\item 受検者 $n = 1, \ldots, N_{\mathrm{training}}$ について順に，以下のシミュレーションを行いエピソードを生成する．
+  \begin{enumerate}
+    \item 各決定ステップ $l = 1, \ldots, L$ において，DRQNによって近似されたQ関数の値と $\varepsilon$-greedy 法を用いて未出題項目から項目 $i_l$ を選択する．
+    \item 3PLM に基づき，真の特性値 $\theta_n$ を用いて回答 $o_l \in \{0,1\}$ を確率的に生成する．
+    \item 報酬 $r_l = I_{i_l}(\theta_n)$ を，真の特性値 $\theta_n$ におけるフィッシャー情報量として計算する．
+  \end{enumerate}
+  1エピソード分の回答系列・行動系列・報酬系列をリプレイメモリに保存する．
+
+\item リプレイメモリに $m$ 件以上のエピソードが蓄積されたら，$m$ 件のミニバッチをサンプリングし，式~\eqref{eq:td_loss}の損失関数で Q-Network のパラメータを更新する．
+$\tau$ 回の更新ごとにターゲットネットワークのパラメータを同期する．
+
+\item 手順2〜3を $N_{\mathrm{training}}$ 回繰り返す間，一定間隔でバリデーションを行い，最良モデルを保存する．
 \end{enumerate}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=.94\columnwidth]{img/dqn_training_flow.png}
-\caption{DQN ベースの項目選択戦略の学習過程．DRQN では状態表現が回答履歴に置き換わり，経験再生の単位がステップからエピソードへ変更される．}
-\label{fig:dqn_training}
-\end{figure}
 
 \section{シミュレーション実験}
 
 \subsection{実験設定}
 
 \paragraph{アイテムバンクの生成}
+
 Wang ら~\cite{wang2024} のシミュレーション設定に基づき，各アイテムバンクを200項目で生成した．項目パラメータの分布は以下の通りである．
 \begin{itemize}
 \item 識別力：$a \sim N(1.2, 0.25)$（$a > 0$）
 \item 困難度：$b \sim N(0, 1)$
 \item 疑似推測：$c \sim N(0.25, 0.02)$（$0 < c < 1$）
 \end{itemize}
-パラメータ間に相関のないアイテムバンク（$r_{ab}=0$）と相関のあるアイテムバンク（$r_{ab}=0.5$）の2種類を各10バンク，計20バンク生成した．各バンクに対して，5,000名の受検者の真の特性値を標準正規分布 $N(0,1)$ から生成した．
+
+項目のパラメータ $a$ と $b$ は通常相関していることを考慮しパラメータ間に相関のないアイテムバンク（$r_{ab}=0$）と 相関のあるアイテムバンク（$r_{ab}=0.5$）の2種類を各3バンク，計6バンク生成した．各バンクに対して，5,000名の受検者の真の特性値を標準正規分布 $N(0,1)$ から生成し, 各手法の性能評価に用いた．
 
 \paragraph{比較手法}
-以下の4手法を比較する．
-\begin{enumerate}
-\item MFI：最大フィッシャー情報量法~\cite{lord1980}
-\item FIWL：尤度重み付きフィッシャー情報量法~\cite{veerkamp1997}
-\item DQN：Deep Q-Network に基づく手法~\cite{wang2024}
-\item DRQN：Deep Recurrent Q-Network に基づく手法（提案手法）
-\end{enumerate}
-MFI と FIWL の実装には R パッケージ catR~\cite{magis2017} を用いる．
 
-\paragraph{強化学習手法のハイパーパラメータ}
-DQN と DRQN の学習設定を表~\ref{tab:hyperparams} に示す．
 
-\begin{table}[t]
-\centering
-\caption{DQN と DRQN のハイパーパラメータ}
-\label{tab:hyperparams}
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{p{0.28\columnwidth}p{0.22\columnwidth}p{0.33\columnwidth}}
-\toprule
-パラメータ & DQN & DRQN \\
-\midrule
-ネットワーク構造 & \shortstack[l]{1$\to$50\\$\to$30$\to$200} & \shortstack[l]{Embedding(3,16)\\$\to$LSTM(64)\\$\to$Linear(200)} \\
-学習データ数 $N_{\mathrm{training}}$ & 1,000 & 1,000 \\
-テスト長 $L$ & 40 & 40 \\
-割引率 $\gamma$ & 0.1 & 0.1 \\
-リプレイメモリサイズ $N_D$ & 1,000 & 1,000 \\
-ミニバッチサイズ $m$ & 128 & 128 \\
-ターゲット更新間隔 $\tau$ & 40 & 40 \\
-学習率 & 0.001 & 0.001 \\
-$\varepsilon$ & 0.1 & 0.1 \\
-バリデーション間隔 & 50 & 50 \\
-バリデーション数 & 200 & 200 \\
-学習データ分布 & $N(0,1)$ & $N(0,1)$ \\
-報酬 & $I_{i_l}(\theta)$ & $I_{i_l}(\theta)$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+本研究ではMFI~\cite{lord1980}, DQN~\cite{wang2024}, DRQN(提案手法)~\cite{hausknecht2015} の3手法を比較する．ただし, DQNは学習用の真の特性値を一様分布から生成したもの(DQN\_uniform)と正規分布から生成したもの(DQN\_normal)の2種類を用意し,DRQNの学習には一様分布のみを使用した.
 
-DQN では全てのネットワークパラメータに正値制約を適用し，Q 値が正であることを保証する．DRQN では出力層の重みとバイアスのみに正値制約を適用し，さらに勾配クリッピング（最大ノルム 1.0）を導入して学習を安定化させる．
+%\paragraph{強化学習手法のハイパーパラメータ}
+%
+%DQN と DRQN の学習設定を表~\ref{tab:hyperparams} に示す．
+%
+%\begin{table}[t]
+%\centering
+%\caption{DQN と DRQN のハイパーパラメータ}
+%\label{tab:hyperparams}
+%\scriptsize
+%\setlength{\tabcolsep}{3pt}
+%\begin{tabular}{p{0.28\columnwidth}p{0.22\columnwidth}p{0.33\columnwidth}}
+%\toprule
+%パラメータ & DQN & DRQN \\
+%\midrule
+%ネットワーク構造 & \shortstack[l]{1$\to$50\\$\to$30$\to$200} & \shortstack[l]{Embedding(3,16)\\$\to$LSTM(64)\\$\to$Linear(200)} \\
+%学習データ数 $N_{\mathrm{training}}$ & 1,000 & 1,000 \\
+%テスト長 $L$ & 40 & 40 \\
+%割引率 $\gamma$ & 0.1 & 0.1 \\
+%リプレイメモリサイズ $N_D$ & 1,000 & 1,000 \\
+%ミニバッチサイズ $m$ & 128 & 128 \\
+%ターゲット更新間隔 $\tau$ & 40 & 40 \\
+%学習率 & 0.001 & 0.001 \\
+%$\varepsilon$ & 0.1 & 0.1 \\
+%バリデーション間隔 & 50 & 50 \\
+%バリデーション数 & 200 & 200 \\
+%学習データ分布 & $N(0,1)$ & $N(0,1)$ \\
+%報酬 & $I_{i_l}(\theta)$ & $I_{i_l}(\theta)$ \\
+%\bottomrule
+%\end{tabular}
+%\end{table}
+
+%DQN では全てのネットワークパラメータに正値制約を適用し，Q 値が正であることを保証する．DRQN では出力層の重みとバイアスのみに正値制約を適用し，さらに勾配クリッピング（最大ノルム 1.0）を導入して学習を安定化させる．
 
 \paragraph{評価指標}
-以下の3指標を用いて，推定特性値の回復精度を評価する．
+
+シミュレーション実験にて以下の3指標を用いて，各手法の推定精度を評価する．
+
 \begin{equation}
 \mathrm{Bias} = \frac{1}{N} \sum_{n=1}^{N} (\hat{\theta}_n - \theta_n)
 \end{equation}
@@ -298,7 +288,7 @@ DQN では全てのネットワークパラメータに正値制約を適用し�
 
 \subsection{結果}
 
-無相関アイテムバンク（$r_{ab}=0$，バンク1〜3平均）における各ステップの推定精度の推移を図\ref{fig:results_rmse}〜\ref{fig:results_bias}に示す．
+無相関アイテムバンク（$r_{ab}=0$）と有相関アイテムバンク（$r_{ab}=0.5$）における各ステップにおけるRMSE, MAE, Biasの平均値を図\ref{fig:results_rmse}〜\ref{fig:results_bias}に示す．
 
 \begin{figure*}[t]
 \centering
@@ -321,32 +311,38 @@ DQN では全てのネットワークパラメータに正値制約を適用し�
 \label{fig:results_bias}
 \end{figure*}
 
-DRQN は40問選択時点において RMSE = 0.200 を達成し，MFI（RMSE = 0.342）と比較して約42\%，DQN（RMSE = 0.254）と比較して約21\%の改善を示した．MAE についても同様の傾向が確認された．
+1. 平均RMSEにおいて, 無相関バンクでは 提案手法は DQN\_uniform に比べて 約10\% の改善を示し, DQN\_normal とは同程度の精度を示した. 有相関バンクにおいては 提案手法 DQN\_uniform を約14\%上回る精度を示し, DQN\_normal を約5\%上回る精度を示した.
 
-図\ref{fig:results_rmse}に示すように，MFI は初期ステップから安定して RMSE が低下する．DQN もテスト序盤から比較的低い RMSE を示す．一方，DRQN はテスト序盤では MFI より高い RMSE を示すが，ステップ数が増加するにつれて急速に改善し，ステップ25以降では他の手法を上回る精度を達成する．これは，十分な回答履歴が蓄積されることで，LSTM が回答パターンから特性値の情報をより正確に抽出できるようになるためと考えられる．
+2. テスト初期の10 ～ 15問目において, 提案手法は 無相関アイテムバンクで MAEが DQN\_normal と比較して最大 50\% 改善(DQN\_uniformに比べて最大60\%改善)し, 有相関アイテムバンクで MAEが DQN\_uniform と比較して最大 35\% 改善(DQN\_normalに比べて最大55\%改善)するなど, 提案手法はテスト初期において 既存手法の DQN よりも大幅に精度が高いことが確認できる. 
+
+3. MFIが40問選択時点にて達成したRMSEを 無相関アイテムバンクにて 13問目(DQN\_normalは18問目,DQN\_uniformは到達せず)にて達成し, 相関アイテムバンクにて 20問目(DQN\_normalは33問目,DQN\_uniformは24問目)にて達成するなど, 提案手法はテスト初期において 既存手法の MFI よりも大幅に精度が高いことが確認できる.
+
+4. 既存手法である DQN の性能は, 使用するアイテムバンクの項目パラメータの相関の有無に大きく依存し, 学習に使用する真の特性値の分布を適切に選択する必要がある. 学習に使用する真の特性値の分布の選び方次第では, MFI よりも大きく性能が劣る可能性があることも図より確認できる. 一方, シミュレーション実験において提案手法の学習に使用した真の特性値の分布は正規分布に固定されているにも関わらず, 安定して MFI よりも高い精度を示していることから, 提案手法は学習に使用する真の特性値の分布に対して比較的ロバストである可能性が示唆される.
+
 
 \section{おわりに}
 
-本研究では，IRT に基づく CAT の項目選択問題を POMDP として再定式化し，回答履歴を状態として利用する DRQN に基づく項目選択戦略を提案した．シミュレーション実験により，提案手法は40問選択時点において既存の MFI および DQN を上回る推定精度を達成することが示された．
+本研究は，IRT に基づく CAT の項目選択を Wang ら~\cite{wang2024} の 定式化における状態を 受験者の回答履歴に置き換える形で再定式化し, Q関数をDRQNで近似する手法を提案した.
 
-提案手法の利点として，回答パターンの直接利用と，CAT を部分観測問題として扱う理論的整合性が挙げられる．一方で，テスト序盤の精度，バンク間の一般化，実データによる検証は今後の課題である．特に序盤性能の補完には，MFI 等の情報量基準手法を併用するハイブリッド戦略の検討が有望である．
+3PLMによって生成されたシミュレーションデータを用いた実験により 既存手法と提案手法の比較を行った結果, テスト中盤(10 〜 15問目) において既存手法を上回る性能を示した.
+
 
 \begin{thebibliography}{99}
 
-\bibitem{barnhart2007}
-H.~X. Barnhart, M.~J. Haber, and L.~I. Lin:
-Overall concordance correlation coefficient for evaluating agreement among multiple observers,
-\textit{Biometrics}, Vol.~63, No.~4, pp.~1099--1106 (2007)
+%\bibitem{barnhart2007}
+%H.~X. Barnhart, M.~J. Haber, and L.~I. Lin:
+%Overall concordance correlation coefficient for evaluating agreement among multiple observers,
+%\textit{Biometrics}, Vol.~63, No.~4, pp.~1099--1106 (2007)
 
 \bibitem{chang1996}
 H.-H. Chang and Z. Ying:
 A global information approach to computerized adaptive testing,
 \textit{Applied Psychological Measurement}, Vol.~20, No.~3, pp.~213--229 (1996)
 
-\bibitem{chen2018}
-Y. Chen, X. Li, J. Liu, and Z. Ying:
-Recommendation system for adaptive learning,
-\textit{Applied Psychological Measurement}, Vol.~42, No.~1, pp.~24--41 (2018)
+%\bibitem{chen2018}
+%Y. Chen, X. Li, J. Liu, and Z. Ying:
+%Recommendation system for adaptive learning,
+%\textit{Applied Psychological Measurement}, Vol.~42, No.~1, pp.~24--41 (2018)
 
 \bibitem{dodd1990}
 B.~G. Dodd:
@@ -365,42 +361,42 @@ A. Ghosh and A. Lan:
 BOBCAT: Bilevel optimization-based computerized adaptive testing,
 \textit{arXiv preprint arXiv:2108.07386} (2021)
 
-\bibitem{han2020}
-R. Han, K. Chen, and C. Tan:
-Curiosity-driven recommendation strategy for adaptive learning via deep reinforcement learning,
-\textit{British Journal of Mathematical and Statistical Psychology},
-Vol.~73, No.~3, pp.~522--540 (2020)
+%\bibitem{han2020}
+%R. Han, K. Chen, and C. Tan:
+%Curiosity-driven recommendation strategy for adaptive learning via deep reinforcement learning,
+%\textit{British Journal of Mathematical and Statistical Psychology},
+%Vol.~73, No.~3, pp.~522--540 (2020)
 
 \bibitem{hausknecht2015}
 M. Hausknecht and P. Stone:
 Deep recurrent Q-learning for partially observable MDPs,
 \textit{arXiv preprint arXiv:1507.06527} (2015)
 
-\bibitem{li2021}
-X. Li, H. Xu, J. Zhang, and H.-H. Chang:
-Optimal hierarchical learning path design with reinforcement learning,
-\textit{Applied Psychological Measurement}, Vol.~45, No.~1, pp.~54--70 (2021)
+%\bibitem{li2021}
+%X. Li, H. Xu, J. Zhang, and H.-H. Chang:
+%Optimal hierarchical learning path design with reinforcement learning,
+%\textit{Applied Psychological Measurement}, Vol.~45, No.~1, pp.~54--70 (2021)
 
-\bibitem{li2023}
-X. Li, H. Xu, J. Zhang, and H.-H. Chang:
-Deep reinforcement learning for adaptive learning systems,
-\textit{Journal of Educational and Behavioral Statistics},
-Vol.~48, No.~2, pp.~220--243 (2023)
+%\bibitem{li2023}
+%X. Li, H. Xu, J. Zhang, and H.-H. Chang:
+%Deep reinforcement learning for adaptive learning systems,
+%\textit{Journal of Educational and Behavioral Statistics},
+%Vol.~48, No.~2, pp.~220--243 (2023)
 
 \bibitem{lord1980}
 F.~M. Lord:
 \textit{Applications of Item Response Theory to Practical Testing Problems},
 Erlbaum (1980)
 
-\bibitem{magis2017}
-D. Magis and J.~R. Barrada:
-Computerized adaptive testing with R: Recent updates of the package catR,
-\textit{Journal of Statistical Software}, Vol.~76, No.~1, pp.~1--19 (2017)
+%\bibitem{magis2017}
+%D. Magis and J.~R. Barrada:
+%Computerized adaptive testing with R: Recent updates of the package catR,
+%\textit{Journal of Statistical Software}, Vol.~76, No.~1, pp.~1--19 (2017)
 
-\bibitem{mnih2013}
-V. Mnih, K. Kavukcuoglu, D. Silver, \textit{et al}.:
-Playing Atari with deep reinforcement learning,
-\textit{arXiv preprint arXiv:1312.5602} (2013)
+%\bibitem{mnih2013}
+%V. Mnih, K. Kavukcuoglu, D. Silver, \textit{et al}.:
+%Playing Atari with deep reinforcement learning,
+%\textit{arXiv preprint arXiv:1312.5602} (2013)
 
 \bibitem{mnih2015}
 V. Mnih, K. Kavukcuoglu, D. Silver, \textit{et al}.:
@@ -419,31 +415,31 @@ J. Shin and O. Bulut:
 Building an intelligent recommendation system for personalized test scheduling in computerized assessments: A reinforcement learning approach,
 \textit{Behavior Research Methods}, Vol.~54, No.~1, pp.~216--232 (2022)
 
-\bibitem{silver2016}
-D. Silver, A. Huang, C.~J. Maddison, \textit{et al}.:
-Mastering the game of Go with deep neural networks and tree search,
-\textit{Nature}, Vol.~529, No.~7587, pp.~484--489 (2016)
+%\bibitem{silver2016}
+%D. Silver, A. Huang, C.~J. Maddison, \textit{et al}.:
+%Mastering the game of Go with deep neural networks and tree search,
+%\textit{Nature}, Vol.~529, No.~7587, pp.~484--489 (2016)
 
-\bibitem{silver2017}
-D. Silver, J. Schrittwieser, K. Simonyan, \textit{et al}.:
-Mastering the game of Go without human knowledge,
-\textit{Nature}, Vol.~550, No.~7676, pp.~354--359 (2017)
+%\bibitem{silver2017}
+%D. Silver, J. Schrittwieser, K. Simonyan, \textit{et al}.:
+%Mastering the game of Go without human knowledge,
+%\textit{Nature}, Vol.~550, No.~7676, pp.~354--359 (2017)
 
-\bibitem{sutton2018}
-R.~S. Sutton and A.~G. Barto:
-\textit{Reinforcement Learning: An Introduction},
-2nd ed., MIT Press (2018)
+%\bibitem{sutton2018}
+%R.~S. Sutton and A.~G. Barto:
+%\textit{Reinforcement Learning: An Introduction},
+%2nd ed., MIT Press (2018)
 
-\bibitem{tan2020}
-C. Tan, R. Han, R. Ye, and K. Chen:
-Adaptive learning recommendation strategy based on deep Q-learning,
-\textit{Applied Psychological Measurement}, Vol.~44, No.~4, pp.~251--266 (2020)
+%\bibitem{tan2020}
+%C. Tan, R. Han, R. Ye, and K. Chen:
+%Adaptive learning recommendation strategy based on deep Q-learning,
+%\textit{Applied Psychological Measurement}, Vol.~44, No.~4, pp.~251--266 (2020)
 
-\bibitem{tang2019}
-X. Tang, Y. Chen, X. Li, J. Liu, and Z. Ying:
-A reinforcement learning approach to personalized learning recommendation systems,
-\textit{British Journal of Mathematical and Statistical Psychology},
-Vol.~72, No.~1, pp.~108--135 (2019)
+%\bibitem{tang2019}
+%X. Tang, Y. Chen, X. Li, J. Liu, and Z. Ying:
+%A reinforcement learning approach to personalized learning recommendation systems,
+%\textit{British Journal of Mathematical and Statistical Psychology},
+%Vol.~72, No.~1, pp.~108--135 (2019)
 
 \bibitem{vanderlinden2016}
 W.~J. van der Linden:
@@ -466,21 +462,21 @@ P. Wang, H. Liu, and M. Xu:
 An adaptive testing item selection strategy via a deep reinforcement learning approach,
 \textit{Behavior Research Methods}, Vol.~56, pp.~8695--8714 (2024)
 
-\bibitem{weiss1982}
-D.~J. Weiss:
-Improving measurement quality and efficiency with adaptive testing,
-\textit{Applied Psychological Measurement}, Vol.~6, No.~4, pp.~473--492 (1982)
+%\bibitem{weiss1982}
+%D.~J. Weiss:
+%Improving measurement quality and efficiency with adaptive testing,
+%\textit{Applied Psychological Measurement}, Vol.~6, No.~4, pp.~473--492 (1982)
 
-\bibitem{weiss1984}
-D.~J. Weiss and G.~G. Kingsbury:
-Application of computerized adaptive testing to educational problems,
-\textit{Journal of Educational Measurement}, Vol.~21, No.~4, pp.~361--375 (1984)
+%\bibitem{weiss1984}
+%D.~J. Weiss and G.~G. Kingsbury:
+%Application of computerized adaptive testing to educational problems,
+%\textit{Journal of Educational Measurement}, Vol.~21, No.~4, pp.~361--375 (1984)
 
-\bibitem{zhang2016}
-J. Zhang and H.-H. Chang:
-From smart testing to smart learning: How testing technology can assist the new generation of education,
-\textit{International Journal of Smart Technology and Learning},
-Vol.~1, No.~1, pp.~67--92 (2016)
+%\bibitem{zhang2016}
+%J. Zhang and H.-H. Chang:
+%From smart testing to smart learning: How testing technology can assist the new generation of education,
+%\textit{International Journal of Smart Technology and Learning},
+%Vol.~1, No.~1, pp.~67--92 (2016)
 
 \end{thebibliography}
 

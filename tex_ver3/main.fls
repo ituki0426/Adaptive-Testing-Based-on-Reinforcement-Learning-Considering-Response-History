@@ -6,7 +6,7 @@ INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/eptex/platex.fmt
-INPUT /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex
+INPUT main.tex
 OUTPUT main.log
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
@@ -318,10 +318,6 @@ INPUT ./img/drqn_arch.png
 INPUT ./img/drqn_arch.png
 INPUT img/drqn_arch.png
 INPUT extractbb -B cropbox -O img/drqn_arch.png
-INPUT ./img/dqn_training_flow.png
-INPUT ./img/dqn_training_flow.png
-INPUT img/dqn_training_flow.png
-INPUT extractbb -B cropbox -O img/dqn_training_flow.png
 INPUT ./img/plot_results_rmse.png
 INPUT ./img/plot_results_rmse.png
 INPUT img/plot_results_rmse.png
