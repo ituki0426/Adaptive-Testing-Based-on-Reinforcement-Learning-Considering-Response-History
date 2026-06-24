@@ -1,10 +1,18 @@
 # Fdb version 3
-["dvipdf"] 1781456277 "main.dvi" "main.pdf" "main" 1781456283
-  "main.dvi" 1781456277 44496 4025822026e5b4fcf831def139cb6b8f "latex"
+["bibtex main"] 1781622917 "main.aux" "main.bbl" "main" 1781623186
+  "junsrt.bst" 0 -1 0 ""
+  "main.aux" 1781623183 3515 c34e5266ab7703906018d58ead6dd73d "latex"
+  "references.bib" 1781118273 18354 dc835e5b1789ff0b1cefa03a2b6c703b ""
+  (generated)
+  "main.bbl"
+  "main.blg"
+["dvipdf"] 1781623184 "main.dvi" "main.pdf" "main" 1781623186
+  "main.dvi" 1781623183 41540 b295c608483703ff83e9a948c054a462 "latex"
   (generated)
   "main.pdf"
-["latex"] 1781456277 "main.tex" "main.dvi" "main" 1781456283
+["latex"] 1781623183 "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex" "main.dvi" "main" 1781623186
   "/etc/texmf/web2c/texmf.cnf" 1754708003 475 c0e671620eb5563b2130f56340a5fde8 ""
+  "/home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex" 1781623182 28002 3dbc276ca6bfaac51bf808c8db93a4b3 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/ptex-fonts/standard/goth10.tfm" 1463434352 1196 5981e79c37b2cfd27b3612a6783cd4b6 ""
@@ -78,15 +86,13 @@
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/web2c/eptex/platex.fmt" 1770016702 1533885 2b952587865f8d71075c715654f2788a ""
-  "img/RL.png" 1781118273 340167 9fc0b855f2969d846be51439e416e104 ""
   "img/drqn_arch.png" 1781118273 1001463 8e141508007e95f530476ddc5a27d0d2 ""
-  "img/mdp_flow.png" 1781118273 1105563 e37a99ffb3b1a7f90b91ba30345ad8bf ""
   "img/plot_results_bias.png" 1781118273 134979 961c24f9873e8978798b08689cc8bd86 ""
-  "img/plot_results_mae.png" 1781118273 121872 6e3fb202a982137cc03407a4624fb662 ""
   "img/plot_results_rmse.png" 1781118273 126901 b8beee01b27a5225b7efab073b3b068d ""
   "jsaisig.sty" 1781118273 988 d733732b5ea45cbbd2b4066c1c2af1d4 ""
-  "main.aux" 1781456277 4286 9ebd447839df611dd259a58b95b942c6 "latex"
-  "main.tex" 1781456271 33598 47c71c16896914d0743b34b7eb29150d ""
+  "main.aux" 1781623183 3515 c34e5266ab7703906018d58ead6dd73d "latex"
+  "main.bbl" 1781622917 2549 998f0fb96a5fa337e47743de033280fc "bibtex main"
+  "main.tex" 1781623182 28002 3dbc276ca6bfaac51bf808c8db93a4b3 ""
   (generated)
   "main.aux"
   "main.dvi"

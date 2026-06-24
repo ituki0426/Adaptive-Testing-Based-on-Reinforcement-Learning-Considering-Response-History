@@ -282,3 +282,6 @@ DRQN は40問選択時点において RMSE = 0.200 を達成し、MFI（RMSE = 0
 - Weiss, D. J., & Kingsbury, G. G. (1984). Application of computerized adaptive testing to educational problems. *Journal of Educational Measurement*, 21(4), 361–375.
 - Zhang, J., & Chang, H.-H. (2016). From smart testing to smart learning: How testing technology can assist the new generation of education. *International Journal of Smart Technology and Learning*, 1(1), 67–92.
 - van der Linden, W. J. (2016). *Handbook of item response theory* (Vol. 1–3). CRC Press.
+
+  今、tex_ver3/main.texの結果はplot_results.ipynbによってプロットしています。DRQNはテスト初期の10～15問目においてDQN_normalとDQN_normalにおいて何パーセント精度(RMSE,MAE)が改善していますか？(1~3アイテムバンクの平均で)相関アイテムバ
+    ンクと無相関アイテムバンクの両方で求めてください。ただし、各10,11,~,15問目において何％改善したかを分かるように表示してください。

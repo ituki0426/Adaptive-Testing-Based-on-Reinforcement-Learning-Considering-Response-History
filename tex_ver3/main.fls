@@ -6,7 +6,7 @@ INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/eptex/platex.fmt
-INPUT main.tex
+INPUT /home/ituki/Adaptive-Testing-Based-on-Reinforcement-Learning-Considering-Response-History/tex_ver3/main.tex
 OUTPUT main.log
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
 INPUT /usr/share/texlive/texmf-dist/tex/platex/base/jarticle.cls
@@ -305,15 +305,7 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbsy10.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy7.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy5.tfm
 OUTPUT main.dvi
-INPUT ./img/RL.png
-INPUT ./img/RL.png
-INPUT img/RL.png
-INPUT extractbb -B cropbox -O img/RL.png
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm
-INPUT ./img/mdp_flow.png
-INPUT ./img/mdp_flow.png
-INPUT img/mdp_flow.png
-INPUT extractbb -B cropbox -O img/mdp_flow.png
 INPUT ./img/drqn_arch.png
 INPUT ./img/drqn_arch.png
 INPUT img/drqn_arch.png
@@ -322,13 +314,13 @@ INPUT ./img/plot_results_rmse.png
 INPUT ./img/plot_results_rmse.png
 INPUT img/plot_results_rmse.png
 INPUT extractbb -B cropbox -O img/plot_results_rmse.png
-INPUT ./img/plot_results_mae.png
-INPUT ./img/plot_results_mae.png
-INPUT img/plot_results_mae.png
-INPUT extractbb -B cropbox -O img/plot_results_mae.png
 INPUT ./img/plot_results_bias.png
 INPUT ./img/plot_results_bias.png
 INPUT img/plot_results_bias.png
 INPUT extractbb -B cropbox -O img/plot_results_bias.png
+INPUT ./main.bbl
+INPUT main.bbl
+INPUT ./main.bbl
+INPUT main.bbl
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmti10.tfm
 INPUT main.aux
