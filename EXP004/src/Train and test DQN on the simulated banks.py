@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
@@ -15,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXP001_DIR = Path(__file__).resolve().parents[1]
 MODEL_DIR = EXP001_DIR / "models"
 RESULTS_DIR = EXP001_DIR / "results"
+
 
 ### If there is a GPU, set all training and testing to be done on the GPU, otherwise on the CPU
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -36,6 +38,22 @@ def FI(item_para, theta, D=1):
     c = item_para[:,2]
     info = D**2*a**2*(1-c) / (c+np.exp(D*a*(theta-b))) / (1+np.exp(-D*a*(theta-b)))**2
     return info
+
+### The function to calculate the Laplace-approximated posterior variance under N(0,1) prior for the training phase (scalar)
+### Var_post ≈ 1 / (I(θ̂) + 1/σ²_prior) = 1 / (I(θ̂) + 1)  for σ²_prior = 1
+### The value is naturally bounded in (0, 1] and requires no clipping.
+def POSTERIOR_VAR(item_paras, theta):
+    info = FI(item_paras, theta).sum()          # I(θ̂) = Σ_k FI_k(θ̂)
+    return float(1.0 / (info + 1.0))
+
+### Vectorized version over examinees for the validation and testing phases
+### item_paras: shape (n_administered, N, 3), theta: shape (N,)  ->  return: shape (N,)
+def POSTERIOR_VAR_TEST(item_paras, theta):
+    var = np.zeros(theta.shape[0])
+    for j in range(theta.shape[0]):
+        info = FI(item_paras[:, j, :], theta[j]).sum()
+        var[j] = 1.0 / (info + 1.0)
+    return var
 
 ### The function to deploy maximum likelihood estimation under 3PLM for training phase
 def MLE(item_paras, resp, D=1):
@@ -154,7 +172,8 @@ def TRAIN(gamma,
         training_theta = np.random.uniform(-3, 3, training_size)
         
     for j in range(training_size) :
-        state = np.concatenate((np.zeros(input_size-1), np.random.rand(1) - 0.5))
+        theta_hat = np.random.rand(1) - 0.5                 # 初期 θ̂ ~ U(-0.5, 0.5)
+        state = np.concatenate((theta_hat, [prior_var]))    # [θ̂, 初期分散]
         item_id = np.array([]).astype('int64')
         resp = np.array([]).astype('int64')
         
@@ -163,13 +182,15 @@ def TRAIN(gamma,
             item_id = np.concatenate((item_id, action))
             resp = np.concatenate((resp, RESPOND(item_bank[action], training_theta[j]))) 
             reward = FI(item_bank[action,], training_theta[j])
+            theta_prev = state[0]                           # ← state[-1] ではなく state[0]
             if len(np.unique(resp)) == 1 :
                 if resp[-1] == 1 :
-                    next_state = np.array([state[-1] + (item_bank[:,1].max() - state[-1]) / 2])
-                else : 
-                    next_state = np.array([state[-1] - (state[-1] - item_bank[:,1].min()) / 2])
-            else : next_state = MLE(item_bank[item_id,], resp)
-            if input_size > 1 : next_state = np.concatenate((state[-(input_size-1):], next_state))
+                    next_theta = np.array([theta_prev + (item_bank[:,1].max() - theta_prev) / 2])
+                else :
+                    next_theta = np.array([theta_prev - (theta_prev - item_bank[:,1].min()) / 2])
+            else : next_theta = MLE(item_bank[item_id,], resp)
+            next_var = POSTERIOR_VAR(item_bank[item_id], next_theta[0])
+            next_state = np.concatenate((next_theta, [next_var]))   # [θ̂', var']
 
             memory[memory_counter % memory_capacity, :] = np.hstack((state, action, reward, next_state))
             memory_counter += 1
@@ -210,7 +231,9 @@ def TRAIN(gamma,
             valid_bias = np.zeros((test_length, validation_size))                        
             valid_theta = np.random.choice(training_theta, validation_size)   
 
-            state = np.concatenate((np.zeros((input_size-1, validation_size)), np.expand_dims((np.random.rand(validation_size)-0.5), axis=0)))
+            theta_hat0 = (np.random.rand(validation_size) - 0.5)[np.newaxis, :]
+            var0       = np.full((1, validation_size), prior_var)
+            state      = np.vstack((theta_hat0, var0))       # 行0 = θ̂, 行1 = var
             item_id = np.array([])
 
             for i in range(test_length):
@@ -226,14 +249,14 @@ def TRAIN(gamma,
                 idx_full = np.sum(resp, axis=0) == resp.shape[0]
                 idx_zero = np.sum(resp, axis=0) == 0
                 idx_norm = np.bitwise_not(idx_full | idx_zero)
-                theta_0[idx_full] = state[-1,idx_full] + (item_bank[:,1].max() - state[-1,idx_full]) / 2
-                theta_0[idx_zero] = state[-1,idx_zero] + (item_bank[:,1].min() - state[-1,idx_zero]) / 2
+                theta_0[idx_full] = state[0,idx_full] + (item_bank[:,1].max() - state[0,idx_full]) / 2
+                theta_0[idx_zero] = state[0,idx_zero] + (item_bank[:,1].min() - state[0,idx_zero]) / 2
                 theta_0[idx_norm] = np.squeeze(MLE_TEST(item_bank[item_id[:,idx_norm]], resp[:,idx_norm]))
                 
         
                 q_eval = eval_net(torch.FloatTensor(np.transpose(state)).to(device)).gather(1, torch.LongTensor(action[:,np.newaxis,]).to(device))
-                if input_size > 1 : state = np.concatenate((state[-(input_size-1):], theta_0[np.newaxis, :]))
-                else: state = theta_0[np.newaxis, :]
+                var_0 = POSTERIOR_VAR_TEST(item_bank[item_id], theta_0)   # item_id は今ステップの項目を含む
+                state = np.vstack((theta_0[np.newaxis, :], var_0[np.newaxis, :]))  # 行0 = θ̂', 行1 = var'
                 q_next = target_net(torch.FloatTensor(np.transpose(state)).to(device)).detach()
                 if i == test_length-1 : 
                     q_target = torch.FloatTensor(reward).to(device)
@@ -250,7 +273,7 @@ def TRAIN(gamma,
             
             result_valid = np.mean(step_valid[6:,1:], axis=0)
             
-            model_path = MODEL_DIR / f"dqn_{prior}_{bank_type}_{bank_id}_gamma_{gamma}.t7"
+            model_path = MODEL_DIR / f"dqn_var_{prior}_{bank_type}_{bank_id}_gamma_{gamma}.t7"
             try :
                 best_valid
             except NameError :
@@ -275,7 +298,9 @@ def TEST(theta_test,
     with torch.no_grad():
         eval_net.eval()
 
-        state = np.concatenate((np.zeros((input_size-1, testing_size)), np.expand_dims((np.random.rand(testing_size)-0.5), axis=0)))
+        theta_hat0 = (np.random.rand(testing_size) - 0.5)[np.newaxis, :]
+        var0       = np.full((1, testing_size), prior_var)
+        state      = np.vstack((theta_hat0, var0))           # 行0 = θ̂, 行1 = var
         item_id = np.array([])
         dqn_step = np.zeros((1, 4))
     
@@ -292,8 +317,8 @@ def TEST(theta_test,
             idx_full = np.sum(resp, axis=0) == resp.shape[0]
             idx_zero = np.sum(resp, axis=0) == 0
             idx_norm = np.bitwise_not(idx_full | idx_zero)
-            theta_0[:,idx_full] = state[-1,idx_full] + (item_bank[:,1].max() - state[-1,idx_full]) / 2
-            theta_0[:,idx_zero] = state[-1,idx_zero] + (item_bank[:,1].min() - state[-1,idx_zero]) / 2
+            theta_0[:,idx_full] = state[0,idx_full] + (item_bank[:,1].max() - state[0,idx_full]) / 2
+            theta_0[:,idx_zero] = state[0,idx_zero] + (item_bank[:,1].min() - state[0,idx_zero]) / 2
             theta_0[:,idx_norm] = MLE_TEST(item_bank[item_id[:,idx_norm]], resp[:,idx_norm])
             
             if i == 0 :
@@ -304,8 +329,8 @@ def TEST(theta_test,
             dqn_step = np.vstack([dqn_step, np.array([i+1, np.mean(theta_0 - theta_test), np.sqrt(np.mean((theta_0 - theta_test)**2)), np.mean(abs(theta_0 - theta_test))])])
             print("step {:g}, bias {:.3f}, rmse {:.3f}, mae {:.3f}".format(dqn_step[-1,0], dqn_step[-1,1], dqn_step[-1,2], dqn_step[-1,3]))
             
-            if input_size > 1 : state = np.concatenate((state[-(input_size-1):], theta_0))
-            else: state = theta_0
+            var_0 = POSTERIOR_VAR_TEST(item_bank[item_id], theta_0[0])   # shape (N,)
+            state = np.vstack((theta_0, var_0[np.newaxis, :]))
             
         user_id = np.repeat(np.arange(1, testing_size+1), test_length).reshape(-1, 1)
         step = np.tile(np.arange(1, test_length+1), testing_size).reshape(-1, 1)
@@ -316,14 +341,16 @@ def TEST(theta_test,
         dqn_data = np.hstack([user_id, step, item_id, resp, theta_est, bias])
         dqn_data = pd.DataFrame(dqn_data).rename(columns={0:'userID',1:'step',2:'itemID',3:'resp',4:'theta_est',5:'bias'}) 
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        dqn_data.to_csv(RESULTS_DIR / f"records_{bank_type}_{bank_id}_DQN_{prior}_gamma_{gamma}.csv", index=False)
+        dqn_data.to_csv(RESULTS_DIR / f"records_{bank_type}_{bank_id}_DQNvar_{prior}_gamma_{gamma}.csv", index=False)
 
 
 
 ### Hyperparameters
 test_length = 40
 
-input_size = 1
+input_size = 2          # [θ̂, var]
+prior_var = 1.0         # 初期分散 = 事前分散
+max_var   = 1.0         # 事後分散のクリップ上限
 first_hidden = 50
 second_hidden = 30
 dropout_rate = 0
@@ -361,7 +388,7 @@ TEST(theta_test)
 
 ### Load the pre-trained model
 eval_net = Net(input_size, first_hidden, second_hidden, action_space, dropout_rate).to(device)
-eval_net = torch.load(MODEL_DIR / f"dqn_{prior}_{bank_type}_{bank_id}_gamma_{gamma}.t7")
+eval_net = torch.load(MODEL_DIR / f"dqn_var_{prior}_{bank_type}_{bank_id}_gamma_{gamma}.t7")
 
 ### Start testing
 theta_test = np.array(pd.read_csv(ROOT / "data" / "theta_true" / f"theta_true_{bank_id}.csv")['x'])
