@@ -2,6 +2,8 @@
 .ruff_cache/
 __pycache__/
 *.py[cod]
+*:Zone.Identifier
+*.zip
 *.csv
 models/
 results/
