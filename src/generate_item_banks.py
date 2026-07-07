@@ -11,7 +11,7 @@ CORRELATED_DIR = ROOT / "data" / "correlated_banks"
 UNCORRELATED_DIR = ROOT / "data" / "uncorrelated_banks"
 
 BANK_COUNT = 10
-ITEM_COUNT = 200
+ITEM_COUNT = 500
 RANDOM_SEED = 20260429
 
 A_MEAN = 1.2

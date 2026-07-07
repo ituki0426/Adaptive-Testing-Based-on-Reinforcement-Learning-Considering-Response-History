@@ -1,14 +1,18 @@
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages(library(catR))
-
 script_path <- if (!is.null(sys.frames()[[1]]$ofile)) {
   normalizePath(sys.frames()[[1]]$ofile)
 } else {
   args <- commandArgs(trailingOnly = FALSE)
-  normalizePath(sub("--file=", "", args[grep("--file=", args)][1]))
+  normalizePath(gsub("~\\+~", " ", sub("--file=", "", args[grep("--file=", args)][1])))
 }
-root_dir <- normalizePath(file.path(dirname(script_path), "..", ".."))
+root_dir <- normalizePath(file.path(dirname(script_path), ".."))
+local_r_lib <- file.path(root_dir, ".Rlib")
+if (dir.exists(local_r_lib)) {
+  .libPaths(c(local_r_lib, .libPaths()))
+}
+
+suppressPackageStartupMessages(library(catR))
 
 get_env <- function(name, default) {
   value <- Sys.getenv(name, unset = NA_character_)
@@ -89,13 +93,14 @@ summarize_steps <- function(records) {
 }
 
 bank_type <- get_env("BANK_TYPE", "uncor")
-bank_id <- as.integer(get_env("BANK_ID", "1"))
+bank_id <- as.integer(get_env("BANK_ID", "2"))
 test_length <- as.integer(get_env("TEST_LENGTH", "40"))
 testing_size <- as.integer(get_env("TESTING_SIZE", "0"))
-n_items <- as.integer(get_env("N_ITEMS", "200"))
+n_items <- as.integer(get_env("N_ITEMS", "500"))
 seed <- as.integer(get_env("SEED", "20260430"))
 output_suffix <- get_env("OUTPUT_SUFFIX", "")
 theta_csv <- get_env("THETA_CSV", "")
+output_dir <- get_env("OUTPUT_DIR", file.path(root_dir, "EXP007", "results"))
 
 bank_dir <- switch(
   bank_type,
@@ -129,7 +134,7 @@ if (test_length > nrow(item_bank)) {
 records <- run_mfi_cat(item_bank, theta_true, test_length, seed)
 summary_by_step <- summarize_steps(records)
 
-results_dir <- file.path(root_dir, "results", "simulated_banks")
+results_dir <- normalizePath(output_dir, mustWork = FALSE)
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 
 records_path <- file.path(results_dir, sprintf("records_%s_%d_MFI%s.csv", bank_type, bank_id, output_suffix))
