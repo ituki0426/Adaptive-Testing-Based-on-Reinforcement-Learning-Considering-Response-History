@@ -1,10 +1,8 @@
-# Load external R functions from a file
-source("Functions.R")
+source("src/Functions.R")
 
-# Load item parameters, true theta values, and responses from files
-item_bank <- read.table(" ")
-theta_true <- read.table(" ")
-responses <- read.table(" ")
+real_resp  <- FALSE
+item_bank  <- as.matrix(read.csv("data/3PL/item_bank_uncor_1.csv")[, c("a","b","c")])
+theta_true <- read.csv("data/theta_true/theta_true_1.csv")[["x"]]
 
 # Set parameters for the simulation
 test_length <- 40  # Number of items in CAT
