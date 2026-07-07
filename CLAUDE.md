@@ -15,46 +15,42 @@ Wang, P., Liu, H., & Xu, M. (2024). An adaptive testing item selection strategy 
 - DQN を用いて Q 関数を近似し、項目を選択
 - シミュレーション・実データの双方で MFI 等5つの従来手法を上回る RMSE・MAE を達成
 
-### MDP 定式化の限界
+### 本ディレクトリの目的
 
-DQN では状態を推定特性値 θ̂ のみとするが、これには以下の問題がある：
+元論文における DQN(normal) と MFI のシミュレーション実験を再現すること。
 
-1. **マルコフ性の違反**: 状態 θ̂ から次の状態 θ̂' への遷移には回答履歴に基づく尤度が必要であり、現在の θ̂ だけでは次の状態が決まらない
-2. **同じ推定値でも不確実性が異なる**: 例えば θ̂=0.5 でも、5問解いた後と20問解いた後では推定の確からしさが全く異なる。スカラーの推定値だけでは、この不確実性の違いを区別できない
+元論文 Table 1（非相関バンク、RMSE）：
 
-### 本研究の提案
+| Test length | DQN (normal) | MFI |
+|---:|---:|---:|
+| 10 | 0.415 | 0.493 |
+| 20 | 0.278 | 0.331 |
+| 30 | 0.244 | 0.277 |
+| 40 | 0.227 | 0.245 |
 
-CAT の項目選択問題を**部分観測マルコフ決定過程（POMDP）**として再定式化し、回答履歴を状態として利用する。
+使用データは非相関バンク（`src/generate_item_banks_3pl.R` で生成した `data/3PL/`、500項目 × 10バンク）。MFI の結果は `data/3PL/results/` に保存。各実験の結果は `EXP***/results/` に保存。
 
-#### POMDP の定式化（1次元 IRT の場合）
+### MDP 定式化の限界と本研究の提案
 
-POMDP は $(S, A, O, p(s'|s,a), p(o|s',a), r)$ で表される。CAT への対応づけ：
+DQN では状態をスカラー θ̂ のみとするが、①マルコフ性を違反し、②同一推定値でも不確実性が異なるという問題がある。本研究は CAT を POMDP として再定式化し、回答履歴を状態として利用する DRQN（Deep Recurrent Q-Network）を提案手法として採用する。
 
-- **真の状態** $s$：受検者の真の特性値 θ（エージェントには観測不可能）
-- **行動** $a$：未出題項目の選択 $i_t \in B_t$
-- **観測** $o$：回答の正誤 $o_t = u_t \in \{0, 1\}$
-- **履歴**: $h_t = (o_1, a_1, o_2, a_2, \ldots, o_t)$
-- **観測モデル**: 3PLM に基づく
-  $$p(o_t | \theta, i_t) = P_{i_t}(\theta)^{o_t} (1 - P_{i_t}(\theta))^{1-o_t}$$
-- **belief state**: $b_t(\theta) = p(\theta | h_t)$（ベイズ更新による事後分布）
-  $$b_t(\theta) = \frac{p(\theta) \prod_{k=1}^{t} P_{i_k}(\theta)^{o_k}(1-P_{i_k}(\theta))^{1-o_k}}{\int p(\theta') \prod_{k=1}^{t} P_{i_k}(\theta')^{o_k}(1-P_{i_k}(\theta'))^{1-o_k} d\theta'}$$
-- **状態遷移**: 明示的に定義しない（DQN/DRQN はモデルフリー手法のため不要）
-- **報酬**: フィッシャー情報量 $I_{i_l}(\theta)$（学習時は真の θ で計算）
+## 元論文コードの問題点
 
-#### DRQN の採用
+`Train and test DQN on the simulated banks.py`（プロジェクトルートに配置）は元論文のオリジナルコードで、以下の問題がある：
 
-POMDP を解くため、**DRQN（Deep Recurrent Q-Network）** を採用する。Hausknecht & Stone (2015) が提案 (`papers/1507.06527v4.pdf`)。DQN の全結合層を LSTM に置き換え、観測履歴から内部状態を構築する model-free な手法。
+- パスが `E:/...` の Windows パスにハードコードされており、そのままでは動かない
+- `RESPOND` の乱数生成が `np.random.rand(1)`（スカラー1個）のため、全項目が同じ正誤になるバグがある
+- `Choose_Action` の ε-greedy 判定に `np.random.randn()`（標準正規分布）を使っており、`np.random.rand()`（一様分布）が正しい
+- `action_space = 500` がハードコードされており、バンクサイズと一致しない場合がある
 
-DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り、LSTM で逐次処理することで belief state を暗黙的に学習する。
+EXP007 以降でこれらを修正済み。
 
 ## シミュレーション設定
 
-`papers/s13428-024-02498-x.pdf` を元にした設定で、`src/generate_theta_true.py` と `src/generate_item_banks.py` を用いてデータ生成。
-
 - IRT モデル：3PLM
-- アイテムバンク：200項目（元論文は500項目）
+- アイテムバンク：500項目（`src/generate_item_banks_3pl.R` で生成）
 - パラメータ分布：a ~ N(1.2, 0.25), b ~ N(0, 1), c ~ N(0.25, 0.02)
-- バンクの種類：無相関（r_ab = 0）、有相関（r_ab = 0.5）、各10バンク
+- バンクの種類：非相関（r_ab = 0）、各10バンク
 - 受検者：5,000名、θ ~ N(0, 1)
 - テスト長：40問
 - 特性値推定：MLE、範囲 [-4, 4]
@@ -75,67 +71,162 @@ DRQN は回答履歴のみ $(o_1, o_2, \ldots)$ を入力として受け取り�
 
 （相関係数 r は使用しない）
 
-## 実験結果（無相関バンク1、40問時点）
+## 実験一覧
 
-| 手法 | Bias | RMSE | MAE |
-|---|---|---|---|
-| MFI | 0.012 | 0.342 | 0.264 |
-| FIWL | 0.006 | 0.332 | 0.259 |
-| DQN (γ=0.1, normal) | −0.028 | 0.254 | 0.170 |
-| DRQN (γ=0.1, normal) | −0.101 | 0.200 | 0.157 |
+### EXP007 — DQN ベースライン（元論文再現・ローカル動作版）
 
-40問選択時点で、DRQN が MFI・DQN を上回る RMSE を達成。
+`EXP007/notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
 
-ただし DRQN はテスト序盤（ステップ1〜10）では MFI より RMSE が高い。回答履歴が蓄積されるにつれて精度が急速に改善する。
+元論文コードのパス問題・バグを修正しローカル/Colab で動くよう整備した実験。アルゴリズム本体は元論文と同一。
+
+主な変更点：
+- `E:/...` のハードコードパスを `pathlib.Path` + `find_project_root()` でポータブルに解決
+- ハイパーパラメータを `@dataclass Config` に一元化
+- `RESPOND` の乱数生成バグを修正（`np.random.rand(1)` → `np.random.random(size=p.shape)`）
+- `Choose_Action` の乱数を `np.random.randn()` → `np.random.rand()` に修正
+- `action_space` をバンクサイズから自動取得
+- ベストモデルを `copy.deepcopy(state_dict)` でメモリ保持し、訓練終了後に保存
+- モデル選択基準を RMSE のみに統一
+- ステップ別 summary CSV を追加出力
+
+使用バンク：`data/uncorrelated_banks/`（200項目）  
+結果保存先：`EXP007/results/`
+
+### EXP008 — TD ターゲット計算の修正
+
+`EXP008/notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
+
+EXP007 の replay buffer 学習で Q(next) を計算する際に出題済み項目が候補に含まれてしまう問題を修正。
+
+主な変更点：
+- memory に `terminal` フラグと `next_available` マスク（size=action_space）を追加
+- Q(next) を `masked_fill(-inf)` で出題済み項目を除外してから argmax
+- 終端ステップでは Q_next をゼロにして TD ターゲットを計算
+
+使用バンク：`data/uncorrelated_banks/`（200項目）  
+結果保存先：`EXP008/results/`
+
+### EXP009 — data/3PL バンクへの切り替え
+
+`EXP009/notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
+
+EXP007 のアルゴリズムをそのまま維持しつつ、バンクを `data/3PL/`（500項目）に変更した実験。元論文準拠のバンク設定により MFI の RMSE が元論文値に近づいた。
+
+主な変更点：
+- バンクディレクトリを `data/3PL/` に固定
+- ファイル名を `item_bank_uncor_{id}.csv` に合わせて変更
+- `Config.bank_type` を削除（uncor 固定）
+- n_items=500
+
+使用バンク：`data/3PL/`（500項目）  
+結果保存先：`EXP009/results/`
+
+### EXP010 — RESPOND 修正 + TD ターゲット修正 + data/3PL（最新・これを参照）
+
+`EXP010/notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
+
+EXP007 に対して RESPOND バグ修正・TD ターゲット修正（EXP008 由来）・data/3PL への切り替え（EXP009 由来）を同時に適用した実験。元論文の再現実験として最も修正が揃ったバージョン。
+
+| 変更内容 | EXP007 | EXP008 | EXP009 | EXP010 |
+|---|---|---|---|---|
+| RESPOND バグ修正 | ✓ | ✓ | ✓ | ✓ |
+| TD ターゲットのマスク修正 | — | ✓ | — | ✓ |
+| data/3PL 使用 | — | — | ✓ | ✓ |
+
+使用バンク：`data/3PL/`（500項目）  
+結果保存先：`EXP010/results/`  
+比較用プロット：`EXP010/notebook/plot_rmse_comparison.ipynb`（MFI vs DQN を gamma ごとに別プロット）
+
+## 現状の再現性評価
+
+### MFI の RMSE 比較
+
+| Test length | 元論文 (MFI) | EXP007 (uncor, 200項目) | EXP009/010 (3PL, 500項目) |
+|---:|---:|---:|---:|
+| 10 | 0.493 | 0.701 | 0.504〜0.522 |
+| 20 | 0.331 | 0.462 | 0.327〜0.340 |
+| 30 | 0.277 | 0.377 | 0.271〜0.278 |
+| 40 | 0.245 | 0.336 | 0.240〜0.245 |
+
+### 現状の問題点
+
+EXP007（data/uncorrelated_banks、200項目）は全ステップで RMSE が元論文より大幅に高い。バンク生成の分散設定が元論文と異なることが原因。
+
+EXP009・EXP010（data/3PL、500項目）は step 40 でほぼ一致するが、序盤（step 10〜20）では依然として乖離が残っている。
 
 ## リポジトリ構成
 
-- `EXP003/` — **ベースライン実験**（最新・これを参照）。MFI・FIWL・DQN・DRQN を同条件で比較し、DRQN の基本性能を確立した実験。
-  - `notebook/` — Colab 用 notebook（MFI, FIWL, DRQN）
-  - `result/` — 実験結果 CSV
+- `Train and test DQN on the simulated banks.py` — 元論文のオリジナル DQN コード（パスハードコード・複数バグあり、EXP007 以降で修正済み）
+- `EXP007/` — DQN ベースライン（元論文再現・ローカル動作版）。使用バンク：`data/uncorrelated_banks/`
+  - `notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
+  - `results/` — summary CSV・比較プロット
+- `EXP008/` — TD ターゲット計算の修正。使用バンク：`data/uncorrelated_banks/`
+  - `notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
+  - `results/`
+- `EXP009/` — data/3PL バンクへの切り替え（500項目）
+  - `notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
+  - `results/`
+- `EXP010/` — 全修正統合版（最新）。使用バンク：`data/3PL/`
+  - `notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
+  - `notebook/plot_rmse_comparison.ipynb`
+  - `results/`
 - `src/` — 共有コード
   - `models.py` — DRQN のモデル定義
   - `utils.py` — IRT ユーティリティ（RESPOND, FI, MLE 等）
-  - `Functions.R` — R 版の IRT 関数群
-  - `generate_item_banks.py` — アイテムバンク生成
+  - `Functions.R` — R 版の IRT 関数群（Response, MFI, KLP, MLWI, MPWI, MEI, MLE, EAP, MAP を定義）
+  - `generate_item_banks.py` — アイテムバンク生成（200項目、`data/uncorrelated_banks/` と `data/correlated_banks/` に出力）
+  - `generate_item_banks_3pl.R` — R 版アイテムバンク生成（500項目、`data/3PL/` に出力。元論文再現実験用）
+  - `generate_item_banks_2pl.R` — 2PL モデル版アイテムバンク生成
   - `generate_theta_true.py` — 真の特性値生成
-- `seminar_docs/` — ゼミ発表資料・進捗メモ
-  - `ゼミ.md` — 研究テーマ全体の導入資料。CD-CAT の基本概念、アトリビュートプロフィール、研究目的の説明に使う
-  - `0417_ゼミ.md` — CD-CAT と強化学習の初期調査メモ。参考論文、基礎概念、質問事項の整理が中心
-  - `ゼミ_2週目.md` — Wang et al. (2024) の読み下し資料。IRT-CAT を MDP として定式化する元論文の要点整理
-  - `ゼミ3週目.md` — 再現実験の初期比較資料。MFI・DQN・DRQN・DDRQN の実装比較と代替データでの性能確認
-  - `ゼミ4週目.md` — belief 入力系の拡張メモ。DBQN / ARDQN の実装方針と belief の離散化表現を説明
-  - `ゼミ5週目.md` — シミュレーション実験の中間報告。DRQN / ADRQN / DDRQN の比較とアイテム情報入力の効果検証
-  - `ゼミ6週目.md` — 実データ 5-fold CV の評価メモ。RMSE・MAE・Bias・相関の fold 別可視化が中心
-  - `ゼミ7週目.md` — 項目選択挙動の可視化資料。ヒートマップ、ユニーク問題数、選択軌跡で方策の振る舞いを確認
-  - `ゼミ_改善版.md` — 研究計画の再構成スライド。CD-CAT×RL の研究ギャップ、POMDP 定式化、報酬設計候補を整理
-  - `ゼミ_ブラッシュアップ.md` — 卒研発表向けのブラッシュアップ版。背景説明と研究意義をより平易にまとめた資料
-  - `ゼミ3週目.pdf` / `ゼミ4週目.pdf` / `ゼミ5週目.pdf` / `ゼミ6週目.pdf` — 対応する Markdown / Marp 資料の出力版
-- `papers/` — 参考論文 PDF・Markdown 版
-  - 対応する Markdown 版（`.md`）がある論文は、内容把握や実装参照では Markdown を優先し、必要に応じて PDF と照合する
-  - `s13428-024-02498-x.md` — Wang et al. (2024) An adaptive testing item selection strategy via a deep reinforcement learning approach。IRT-CAT を MDP として定式化した DQN ベース項目選択法の元論文
-  - `1507.06527v4.md` — Hausknecht & Stone (2015) Deep Recurrent Q-Learning for Partially Observable MDPs。DRQN の原典で、POMDP に対する LSTM 付き DQN の基本設計を確認する資料
-  - `1704.07978v6.md` — Zhu et al. On Improving Deep Reinforcement Learning for POMDPs。ADRQN 系の拡張を扱い、行動と観測の組み合わせ入力の参考になる
-  - `363_report.md` — Maxim Egorov (2015) Deep Reinforcement Learning with POMDPs。belief ベース入力と history ベース入力を比較する短報
-  - `IPSJ-GPWS2018034.md` — Oh Hyunwoo, 金子知適 (2018) LSTM の初期状態の学習による DRQN の改善。更新開始時 hidden state の学習による DRQN 改善を扱う
-  - `s11336-009-9123-2.md` — When Cognitive Diagnosis Meets Computerized Adaptive Testing: CD-CAT。CD-CAT の基礎枠組みと KL / エントロピー系項目選択基準を押さえる論文
-  - `10.1177_0013164418790634.md` — Lin & Chang (2019) Item Selection Criteria With Practical Constraints in CD-CAT。属性バランスと露出制御を含む制約付き CD-CAT 項目選択を扱う
-  - `reinforcement-learning-applied-to-adaptive-classification-5badyfmq0l.md` — Nurakhmetov, Reinforcement Learning Applied to Adaptive Classification Testing。適応的分類テストへの RL 導入事例
-- `img/` — 図
-  - `Flowchart of the IRT-based item selection strategy.png` — 元論文 Fig.1(a): IRT ベースの項目選択戦略のフローチャート
-  - `Flowchart of the RL-based item selection strategy in the MDP framework.png` — 元論文 Fig.1(b): MDP 枠組みにおける RL ベースの項目選択戦略のフローチャート
-  - `Flowchart of the training process for the DQN-based item selection strategy.png` — 元論文 Fig.2: DQN ベースの項目選択戦略の学習過程のフローチャート
-  - `The architecture of Q-Network in DQN.png` — DQN の Q-Network アーキテクチャ
-  - `The architecture of Q-Network in DRQN.png` — DRQN の Q-Network アーキテクチャ
+  - `IRT-based CAT.R` — IRT ベース CAT シミュレーション（MFI / KLP / MLWI / MPWI / MEI 対応）
+  - `Test MFI on the simulated bank.R` — `data/uncorrelated_banks/` を使う MFI 実験（catR パッケージ使用）
+  - `Test MFI on the 3PL bank.R` — `data/3PL/` を使う MFI 実験（元論文再現実験用）
+  - `Test FIWL on the simulated bank.R` — FIWL 実験スクリプト
+  - `split_theta.py` — 特性値の分割ユーティリティ
 - `data/` — 生成されたアイテムバンク・特性値データ
-- `EXP001/` — **Learnable Initial Hidden State DRQN**。LSTM の初期 hidden/cell state をゼロ固定から学習可能パラメータ（`nn.Parameter`）に変更し、序盤（step 1〜10）の RMSE 悪化を緩和できるか検証する実験。変更点はモデルの初期状態のみで、入力・報酬・評価手順はベースライン（EXP003）と同一。詳細は `EXP001/exp_summary.md` 参照。
-- `EXP002/` — **Burn-in DRQN**。replay memory から取り出した系列の先頭 `burn_in_steps`（デフォルト5）ステップを no-grad で LSTM に流して hidden state を構築し、残りの後半区間のみで TD 損失を計算する学習法を検証する実験。モデル構造はベースライン（EXP003）と同一で、変更点は学習ループのみ。詳細は `EXP002/exp_summary.md` 参照。
+  - `uncorrelated_banks/` — 非相関バンク（200項目 × 10バンク）
+  - `correlated_banks/` — 有相関バンク（200項目 × 10バンク）
+  - `3PL/` — 元論文準拠の非相関バンク（500項目 × 10バンク、`src/generate_item_banks_3pl.R` で生成）
+    - `results/` — `src/Test MFI on the 3PL bank.R` の出力先
+  - `theta_true/` — 真の特性値
+- `seminar_docs/` — ゼミ発表資料・進捗メモ
+- `papers/` — 参考論文 PDF・Markdown 版（対応する `.md` がある場合は Markdown を優先して参照）
+  - `s13428-024-02498-x.md` — Wang et al. (2024)、元論文
+  - `1507.06527v4.md` — Hausknecht & Stone (2015)、DRQN の原典
+  - `1704.07978v6.md` — Zhu et al.、ADRQN 系の拡張
+  - `363_report.md` — Egorov (2015)、belief vs history ベース入力の比較
+  - `IPSJ-GPWS2018034.md` — Oh & 金子 (2018)、DRQN 初期状態学習による改善
+  - `s11336-009-9123-2.md` — CD-CAT の基礎論文
+  - `10.1177_0013164418790634.md` — Lin & Chang (2019)、制約付き CD-CAT
+  - `reinforcement-learning-applied-to-adaptive-classification-5badyfmq0l.md` — Nurakhmetov、適応的分類テストへの RL 導入
+- `papers_ja/` — 論文の日本語訳・要約メモ
+- `img/` — 図（元論文 Fig.1-2 など）
 - `paper.md` — 研究論文の Markdown 版
-- `tex/` — 研究論文の LaTeX 版
-  - `main.tex` — `paper.md` の LaTeX 版
+- `tex_ver1/`, `tex_ver2/`, `tex_ver3/` — 研究論文の LaTeX 版（バージョン管理）
+- `refactoring.md` — 本ディレクトリの目的・各実験の説明・再現性評価の記録
 
 ## 論文 Markdown の扱い
 
-- 論文を Markdown 化する場合は、原則として `papers/<PDFファイル名>.md` の対応を保つ
+- 論文を Markdown 化する場合は `papers/<PDFファイル名>.md` の対応を保つ
 - 図を切り出す場合は `papers/img/<PDFファイル名>_figN.png` の命名を用いる
 - 既存の Markdown 論文を更新する場合は、図リンク切れ、節見出し、表の崩れも確認する
+
+## 実行コマンド
+
+Python の依存関係は `uv` と `pyproject.toml` で管理する。
+
+```bash
+uv sync
+uv run ruff check -- src
+uv run ruff format --check -- src
+uv run pyright
+```
+
+R スクリプトは以下の形式で実行する。
+
+```bash
+Rscript "src/generate_item_banks_3pl.R"
+Rscript "src/Test MFI on the 3PL bank.R"
+```
+
+ファイル名にスペースが含まれる場合はパスを必ずクォートする。
