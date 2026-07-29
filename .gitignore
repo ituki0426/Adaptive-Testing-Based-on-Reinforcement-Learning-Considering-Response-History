@@ -9,3 +9,4 @@ models/
 results/
 data/
 .Rlib/
+.DS_Store
