@@ -1,25 +1,16 @@
-実装上の疑問があれば必ず質問してください。
+# CLAUDE.md
 
-## プロジェクト概要
+このリポジトリは、Wang et al. (2024) の DQN(normal) と MFI の CAT シミュレーション実験を再現するための研究コードである。
 
-本リポジトリは、IRT（項目反応理論）の枠組みで実施される CAT（コンピュータ適応型テスト）における項目選択アルゴリズムを研究するリポジトリである。
+現時点では、元論文 Table 1 の「DQN(normal) が MFI より低い RMSE を示す」という主要結果は再現できていない。特に、MFI が元論文に近い `data/3PL/` 条件では DQN が MFI に負けている。この前提を崩さずに作業すること。
 
-## 研究の背景と位置づけ
+## 目的
 
-### 元論文
+元論文：
 
-Wang, P., Liu, H., & Xu, M. (2024). An adaptive testing item selection strategy via a deep reinforcement learning approach. *Behavior Research Methods*, 56, 8695–8714. (`papers/s13428-024-02498-x.pdf`)
+Wang, P., Liu, H., & Xu, M. (2024). An adaptive testing item selection strategy via a deep reinforcement learning approach. *Behavior Research Methods*, 56, 8695-8714. (`papers/s13428-024-02498-x.pdf`)
 
-- IRT に基づく CAT をマルコフ決定過程（MDP）として定式化
-- 状態：現在推定されている特性値 θ̂（スカラー）
-- DQN を用いて Q 関数を近似し、項目を選択
-- シミュレーション・実データの双方で MFI 等5つの従来手法を上回る RMSE・MAE を達成
-
-### 本ディレクトリの目的
-
-元論文における DQN(normal) と MFI のシミュレーション実験を再現すること。
-
-元論文 Table 1（非相関バンク、RMSE）：
+再現対象は、元論文 Table 1 の非相関バンクにおける RMSE である。
 
 | Test length | DQN (normal) | MFI |
 |---:|---:|---:|
@@ -28,205 +19,316 @@ Wang, P., Liu, H., & Xu, M. (2024). An adaptive testing item selection strategy 
 | 30 | 0.244 | 0.277 |
 | 40 | 0.227 | 0.245 |
 
-使用データは非相関バンク（`src/generate_item_banks_3pl.R` で生成した `data/3PL/`、500項目 × 10バンク）。MFI の結果は `data/3PL/results/` に保存。各実験の結果は `EXP***/results/` に保存。
+## 作業時の重要方針
 
-### MDP 定式化の限界と本研究の提案
+- DQN が MFI より良いはず、という前提でコードや結果説明を調整しない。
+- 現状は「DQN 優位性は未再現」であると明記する。
+- 実験条件を変えた場合は、乱数 seed、データセット、項目数、報酬、状態、行動マスク、評価指標、比較対象を記録する。
+- DQN の RMSE だけでなく、必ず同じデータセット上の MFI と比較する。
+- `data/uncorrelated_banks/` と `data/3PL/` は生成条件が異なるため、結果を混同しない。
+- 元論文本文、公開実装、現在の修正版のどれに準拠した変更なのかを区別して記録する。
+- 論文本文と公開実装に乖離がないか、公開実装に結果へ影響するバグがないかを継続して確認する。
 
-DQN では状態をスカラー θ̂ のみとするが、①マルコフ性を違反し、②同一推定値でも不確実性が異なるという問題がある。本研究は CAT を POMDP として再定式化し、回答履歴を状態として利用する DRQN（Deep Recurrent Q-Network）を提案手法として採用する。
+## データセット
 
-## 元論文コードの問題点
+本リポジトリでは、非相関アイテムバンクとして 2 種類のデータセットを使っている。
 
-`Train and test DQN on the simulated banks.py`（プロジェクトルートに配置）は元論文のオリジナルコードで、以下の問題がある：
+| データセット | 項目数 | 分散指定の扱い | 主な使用実験 | 位置づけ |
+|---|---:|---|---|---|
+| `data/uncorrelated_banks/` | 500 | 分散値に `sqrt` を取らずに生成 | EXP007, EXP008, EXP011 | 初期のローカル再現実験で使用したバンク |
+| `data/3PL/` | 500 | 分散値に `sqrt` を取り、標準偏差として生成 | EXP009, EXP010 | 元論文 Table 1 の再現により近いバンク |
 
-- パスが `E:/...` の Windows パスにハードコードされており、そのままでは動かない
-- `RESPOND` の乱数生成が `np.random.rand(1)`（スカラー1個）のため、全項目が同じ正誤になるバグがある
-- `Choose_Action` の ε-greedy 判定に `np.random.randn()`（標準正規分布）を使っており、`np.random.rand()`（一様分布）が正しい
-- `action_space = 500` がハードコードされており、バンクサイズと一致しない場合がある
+`data/3PL/` は `src/generate_item_banks_3pl.R` によって生成された `data/3PL/item_bank_uncor_1.csv` から `data/3PL/item_bank_uncor_10.csv` を使用する。元論文のパラメータ設定では a, b, c のばらつきは分散として記述されているため、乱数生成時には `sqrt(分散)` を標準偏差として渡す必要がある。
 
-EXP007 以降でこれらを修正済み。
+`data/uncorrelated_banks/` はこの `sqrt` 処理を行っていないため、項目パラメータの分布が `data/3PL/` と異なる。
 
-## シミュレーション設定
+## 結果保存先
 
-- IRT モデル：3PLM
-- アイテムバンク：500項目（`src/generate_item_banks_3pl.R` で生成）
-- パラメータ分布：a ~ N(1.2, 0.25), b ~ N(0, 1), c ~ N(0.25, 0.02)
-- バンクの種類：非相関（r_ab = 0）、各10バンク
-- 受検者：5,000名、θ ~ N(0, 1)
-- テスト長：40問
-- 特性値推定：MLE、範囲 [-4, 4]
-- 初期特性値：Uniform(-0.5, 0.5)
+MFI の結果は、評価対象のデータセットごとに保存先が異なる。
 
-## 比較手法
+| MFI の対象データセット | 分散指定の扱い | MFI 結果保存先 |
+|---|---|---|
+| `data/uncorrelated_banks/` | 分散値に `sqrt` を取らずに生成 | `EXP007/results/` |
+| `data/3PL/` | 分散値に `sqrt` を取り、標準偏差として生成 | `data/3PL/results/` |
 
-1. **MFI** — 最大フィッシャー情報量法（Lord, 1980）
-2. **FIWL** — 尤度重み付きフィッシャー情報量法（Veerkamp & Berger, 1997）。1問目は MFI、2問目以降は MLWI。
-3. **DQN** — Wang et al. (2024) の手法。状態＝推定特性値（MDP 定式化）
-4. **DRQN** — 本研究の提案手法。状態＝回答履歴（POMDP 定式化）
+DQN の各実験結果は `EXP(実験番号)/results/` 内に保存する。
 
-## 評価指標
+## 元論文コード
 
-- Bias
-- RMSE
-- MAE
+元論文の DQN プログラムは `Train and test DQN on the simulated banks.py` である。
 
-（相関係数 r は使用しない）
+このコードには、再現実験へ影響しうる以下の問題がある。
+
+- パスが `E:/...` の Windows パスにハードコードされており、そのままでは動かない。
+- `RESPOND` の乱数生成が `np.random.rand(1)` で、全項目に同じ乱数が使われる。
+- `Choose_Action` の ε-greedy 判定に `np.random.randn()` が使われている。探索確率の判定には `np.random.rand()` が妥当。
+- `action_space = 500` がハードコードされており、バンクサイズと一致しない場合がある。
+
+EXP007 以降でこれらを修正している。
 
 ## 実験一覧
 
-### EXP007 — DQN ベースライン（元論文再現・ローカル動作版）
+### EXP007
+
+DQN ベースライン（元論文再現・ローカル動作版）。
+
+Notebook：
 
 `EXP007/notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
 
-元論文コードのパス問題・バグを修正しローカル/Colab で動くよう整備した実験。アルゴリズム本体は元論文と同一。
+概要：
+
+元論文コードをローカル環境・Colab で動くよう整備した実験。アルゴリズム本体は元論文と同一。
 
 主な変更点：
-- `E:/...` のハードコードパスを `pathlib.Path` + `find_project_root()` でポータブルに解決
-- ハイパーパラメータを `@dataclass Config` に一元化
-- `RESPOND` の乱数生成バグを修正（`np.random.rand(1)` → `np.random.random(size=p.shape)`）
-- `Choose_Action` の乱数を `np.random.randn()` → `np.random.rand()` に修正
-- `action_space` をバンクサイズから自動取得
-- ベストモデルを `copy.deepcopy(state_dict)` でメモリ保持し、訓練終了後に保存
-- モデル選択基準を RMSE のみに統一
-- ステップ別 summary CSV を追加出力
 
-使用バンク：`data/uncorrelated_banks/`（200項目）  
-結果保存先：`EXP007/results/`
+- `E:/...` のハードコードパスを `pathlib.Path` と `find_project_root()` でポータブルに解決。
+- ハイパーパラメータを `@dataclass Config` に一元化。
+- `RESPOND` の乱数生成バグを修正。
+- `Choose_Action` の乱数を `np.random.randn()` から `np.random.rand()` に修正。
+- `action_space` をバンクサイズから自動取得。
+- ベストモデルを `copy.deepcopy(state_dict)` でメモリ保持し、訓練終了後に保存。
+- モデル選択基準を RMSE のみに統一。
+- ステップ別 summary CSV を追加出力。
 
-### EXP008 — TD ターゲット計算の修正
+使用バンク：
+
+`data/uncorrelated_banks/`（500項目、分散値に `sqrt` を取らずに生成）
+
+DQN 結果保存先：
+
+`EXP007/results/`
+
+詳細：
+
+`EXP007/exp_summary.md`
+
+### EXP008
+
+TD ターゲット計算の修正。
+
+Notebook：
 
 `EXP008/notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
 
-EXP007 の replay buffer 学習で Q(next) を計算する際に出題済み項目が候補に含まれてしまう問題を修正。
+概要：
+
+EXP007 の replay buffer 学習で Q(next) を計算する際に、出題済み項目が候補に含まれてしまう問題を修正。
 
 主な変更点：
-- memory に `terminal` フラグと `next_available` マスク（size=action_space）を追加
-- Q(next) を `masked_fill(-inf)` で出題済み項目を除外してから argmax
-- 終端ステップでは Q_next をゼロにして TD ターゲットを計算
 
-使用バンク：`data/uncorrelated_banks/`（200項目）  
-結果保存先：`EXP008/results/`
+- `RESPOND` の乱数生成を項目ごとに独立した乱数へ修正。
+- `MLE` / `MLE_TEST` に `np.clip(p, 1e-10, 1 - 1e-10)` を追加し、`log(0)` を防止。
+- memory に `terminal` フラグと `next_available` マスクを追加。
+- Q(next) を `masked_fill(-inf)` で出題済み項目を除外してから argmax。
+- 終端ステップでは Q_next をゼロにして TD ターゲットを計算。
+- ベストモデルは `state_dict` をメモリ保持し、訓練終了後に `.pt` として保存。
 
-### EXP009 — data/3PL バンクへの切り替え
+使用バンク：
+
+`data/uncorrelated_banks/`（500項目、分散値に `sqrt` を取らずに生成）
+
+DQN 結果保存先：
+
+`EXP008/results/`
+
+主要結果（bank 1、RMSE）：
+
+| gamma | step 10 | step 20 | step 30 | step 40 |
+|---:|---:|---:|---:|---:|
+| 0.1 | 0.636 | 0.449 | 0.376 | 0.341 |
+| 0.3 | 0.662 | 0.465 | 0.385 | 0.351 |
+
+TD ターゲットのマスク修正だけでは DQN の明確な改善は確認できなかった。gamma=0.1 の step 40 RMSE は EXP007 の 0.329 に対して EXP008 は 0.341 で悪化している。
+
+### EXP009
+
+`data/3PL/` バンクへの切り替え。
+
+Notebook：
 
 `EXP009/notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
 
-EXP007 のアルゴリズムをそのまま維持しつつ、バンクを `data/3PL/`（500項目）に変更した実験。元論文準拠のバンク設定により MFI の RMSE が元論文値に近づいた。
+概要：
+
+EXP007 のアルゴリズムを維持しつつ、バンクを `data/3PL/`（500項目、分散値に `sqrt` を取って生成）に変更した実験。
 
 主な変更点：
-- バンクディレクトリを `data/3PL/` に固定
-- ファイル名を `item_bank_uncor_{id}.csv` に合わせて変更
-- `Config.bank_type` を削除（uncor 固定）
-- n_items=500
 
-使用バンク：`data/3PL/`（500項目）  
-結果保存先：`EXP009/results/`
+- バンクディレクトリを `data/3PL/` に固定。
+- ファイル名を `item_bank_uncor_{id}.csv` に合わせて変更。
+- `Config.bank_type` を削除。
+- n_items=500。
 
-### EXP010 — RESPOND 修正 + TD ターゲット修正 + data/3PL（最新・これを参照）
+DQN 結果保存先：
+
+`EXP009/results/`
+
+詳細：
+
+`EXP009/exp_summary.md`
+
+### EXP010
+
+RESPOND 修正 + TD ターゲット修正 + `data/3PL/`。
+
+Notebook：
 
 `EXP010/notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
 
-EXP007 に対して RESPOND バグ修正・TD ターゲット修正（EXP008 由来）・data/3PL への切り替え（EXP009 由来）を同時に適用した実験。元論文の再現実験として最も修正が揃ったバージョン。
+概要：
+
+EXP007 に対して RESPOND バグ修正、TD ターゲット修正、`data/3PL/` への切り替えを同時に適用した実験。
 
 | 変更内容 | EXP007 | EXP008 | EXP009 | EXP010 |
 |---|---|---|---|---|
-| RESPOND バグ修正 | ✓ | ✓ | ✓ | ✓ |
-| TD ターゲットのマスク修正 | — | ✓ | — | ✓ |
-| data/3PL 使用 | — | — | ✓ | ✓ |
+| RESPOND バグ修正 | yes | yes | yes | yes |
+| TD ターゲットのマスク修正 | no | yes | no | yes |
+| data/3PL（sqrt あり）使用 | no | no | yes | yes |
 
-使用バンク：`data/3PL/`（500項目）  
-結果保存先：`EXP010/results/`  
-比較用プロット：`EXP010/notebook/plot_rmse_comparison.ipynb`（MFI vs DQN を gamma ごとに別プロット）
+使用バンク：
+
+`data/3PL/`（500項目、分散値に `sqrt` を取って生成）
+
+DQN 結果保存先：
+
+`EXP010/results/`
+
+比較用プロット：
+
+`EXP010/notebook/plot_rmse_comparison.ipynb`
+
+詳細：
+
+`EXP010/exp_summary.md`
+
+### EXP011
+
+DQN with Estimated theta-hat Reward（論文アルゴリズム準拠）。
+
+Notebook：
+
+`EXP011/notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
+
+概要：
+
+EXP007 との差は、報酬の計算に使う theta の違いのみ。EXP007 から EXP010 では元論文コードに合わせて真の theta で Fisher 情報量を計算していたが、元論文 Algorithm 1 と Eq. 13 では推定値 theta-hat で計算した Fisher 情報量が報酬として定義されている。
+
+主な変更点：
+
+- TRAIN 関数内の報酬計算を `FI(item_bank[action,], training_theta[j])` から `FI(item_bank[action,], state[-1:])` に変更。
+- ネットワーク構造、バンク、prior、受検者数、テスト長などは EXP007 と同一。
+- gamma=0.1, 0.3, 0.9 を実施。
+
+使用バンク：
+
+`data/uncorrelated_banks/`（500項目、分散値に `sqrt` を取らずに生成）
+
+DQN 結果保存先：
+
+`EXP011/results/`
+
+主要結果（bank 1、RMSE）：
+
+| gamma | step 10 | step 20 | step 30 | step 40 |
+|---:|---:|---:|---:|---:|
+| 0.1 | 0.626 | 0.442 | 0.370 | 0.330 |
+| 0.3 | 0.700 | 0.481 | 0.398 | 0.359 |
+| 0.9 | 0.934 | 0.694 | 0.553 | 0.482 |
+
+推定 theta-hat で報酬を計算しても、EXP007 に対する明確な改善は確認できなかった。
 
 ## 現状の再現性評価
 
-### MFI の RMSE 比較
+### 結論
 
-| Test length | 元論文 (MFI) | EXP007 (uncor, 200項目) | EXP009/010 (3PL, 500項目) |
+現時点では、元論文 Table 1 の「DQN(normal) が MFI より低い RMSE を示す」という主要結果は再現できていない。
+
+データセットによって再現できている部分が異なる。
+
+- `data/uncorrelated_banks/`（sqrt なし）では、DQN が MFI よりやや低い RMSE になる場合がある。しかし MFI 自体が元論文より大幅に悪く、この条件は元論文 Table 1 のデータ設定を再現できていない。
+- `data/3PL/`（sqrt あり）では、MFI は元論文にかなり近づく。しかしこの条件では、DQN は step 20 から 40 で MFI より RMSE が高く、元論文の DQN 優位性を再現できていない。
+
+現状は「MFI が元論文に近い条件では DQN が MFI に負ける」状態であり、元論文の結論は未再現である。
+
+### MFI の絶対値再現
+
+| Test length | 元論文 MFI | EXP007 MFI（uncor, sqrt なし） | EXP009/010 MFI（3PL, sqrt あり） |
 |---:|---:|---:|---:|
-| 10 | 0.493 | 0.701 | 0.504〜0.522 |
-| 20 | 0.331 | 0.462 | 0.327〜0.340 |
-| 30 | 0.277 | 0.377 | 0.271〜0.278 |
-| 40 | 0.245 | 0.336 | 0.240〜0.245 |
+| 10 | 0.493 | 0.701 | 0.504-0.522 |
+| 20 | 0.331 | 0.462 | 0.327-0.340 |
+| 30 | 0.277 | 0.377 | 0.271-0.278 |
+| 40 | 0.245 | 0.336 | 0.240-0.245 |
 
-### 現状の問題点
+`data/3PL/`（sqrt あり）は MFI の絶対値再現にはかなり近い。一方、`data/uncorrelated_banks/`（sqrt なし）は MFI が元論文より大幅に悪い。
 
-EXP007（data/uncorrelated_banks、200項目）は全ステップで RMSE が元論文より大幅に高い。バンク生成の分散設定が元論文と異なることが原因。
+### DQN と MFI の比較
 
-EXP009・EXP010（data/3PL、500項目）は step 40 でほぼ一致するが、序盤（step 10〜20）では依然として乖離が残っている。
+元論文の主張は、同じテスト長で DQN(normal) の RMSE が MFI より低いことである。再現実験でも、DQN と MFI は同じデータセット上で比較する必要がある。
 
-## リポジトリ構成
+sqrt なしデータセット（`data/uncorrelated_banks/`）：
 
-- `Train and test DQN on the simulated banks.py` — 元論文のオリジナル DQN コード（パスハードコード・複数バグあり、EXP007 以降で修正済み）
-- `EXP007/` — DQN ベースライン（元論文再現・ローカル動作版）。使用バンク：`data/uncorrelated_banks/`
-  - `notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
-  - `results/` — summary CSV・比較プロット
-- `EXP008/` — TD ターゲット計算の修正。使用バンク：`data/uncorrelated_banks/`
-  - `notebook/Train_and_test_DQN_on_the_simulated_banks.ipynb`
-  - `results/`
-- `EXP009/` — data/3PL バンクへの切り替え（500項目）
-  - `notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
-  - `results/`
-- `EXP010/` — 全修正統合版（最新）。使用バンク：`data/3PL/`
-  - `notebook/Train_and_test_DQN_on_the_3PL_banks.ipynb`
-  - `notebook/plot_rmse_comparison.ipynb`
-  - `results/`
-- `src/` — 共有コード
-  - `models.py` — DRQN のモデル定義
-  - `utils.py` — IRT ユーティリティ（RESPOND, FI, MLE 等）
-  - `Functions.R` — R 版の IRT 関数群（Response, MFI, KLP, MLWI, MPWI, MEI, MLE, EAP, MAP を定義）
-  - `generate_item_banks.py` — アイテムバンク生成（200項目、`data/uncorrelated_banks/` と `data/correlated_banks/` に出力）
-  - `generate_item_banks_3pl.R` — R 版アイテムバンク生成（500項目、`data/3PL/` に出力。元論文再現実験用）
-  - `generate_item_banks_2pl.R` — 2PL モデル版アイテムバンク生成
-  - `generate_theta_true.py` — 真の特性値生成
-  - `IRT-based CAT.R` — IRT ベース CAT シミュレーション（MFI / KLP / MLWI / MPWI / MEI 対応）
-  - `Test MFI on the simulated bank.R` — `data/uncorrelated_banks/` を使う MFI 実験（catR パッケージ使用）
-  - `Test MFI on the 3PL bank.R` — `data/3PL/` を使う MFI 実験（元論文再現実験用）
-  - `Test FIWL on the simulated bank.R` — FIWL 実験スクリプト
-  - `split_theta.py` — 特性値の分割ユーティリティ
-- `data/` — 生成されたアイテムバンク・特性値データ
-  - `uncorrelated_banks/` — 非相関バンク（200項目 × 10バンク）
-  - `correlated_banks/` — 有相関バンク（200項目 × 10バンク）
-  - `3PL/` — 元論文準拠の非相関バンク（500項目 × 10バンク、`src/generate_item_banks_3pl.R` で生成）
-    - `results/` — `src/Test MFI on the 3PL bank.R` の出力先
-  - `theta_true/` — 真の特性値
-- `seminar_docs/` — ゼミ発表資料・進捗メモ
-- `papers/` — 参考論文 PDF・Markdown 版（対応する `.md` がある場合は Markdown を優先して参照）
-  - `s13428-024-02498-x.md` — Wang et al. (2024)、元論文
-  - `1507.06527v4.md` — Hausknecht & Stone (2015)、DRQN の原典
-  - `1704.07978v6.md` — Zhu et al.、ADRQN 系の拡張
-  - `363_report.md` — Egorov (2015)、belief vs history ベース入力の比較
-  - `IPSJ-GPWS2018034.md` — Oh & 金子 (2018)、DRQN 初期状態学習による改善
-  - `s11336-009-9123-2.md` — CD-CAT の基礎論文
-  - `10.1177_0013164418790634.md` — Lin & Chang (2019)、制約付き CD-CAT
-  - `reinforcement-learning-applied-to-adaptive-classification-5badyfmq0l.md` — Nurakhmetov、適応的分類テストへの RL 導入
-- `papers_ja/` — 論文の日本語訳・要約メモ
-- `img/` — 図（元論文 Fig.1-2 など）
-- `paper.md` — 研究論文の Markdown 版
-- `tex_ver1/`, `tex_ver2/`, `tex_ver3/` — 研究論文の LaTeX 版（バージョン管理）
-- `refactoring.md` — 本ディレクトリの目的・各実験の説明・再現性評価の記録
+| Test length | MFI | EXP007 DQN gamma=0.1 | DQN の改善量（MFI - DQN） | 元論文の改善量 | 優劣（RMSE） |
+|---:|---:|---:|---:|---:|---|
+| 10 | 0.701 | 0.653 | 0.048 | 0.078 | DQN < MFI |
+| 20 | 0.462 | 0.443 | 0.019 | 0.053 | DQN < MFI |
+| 30 | 0.377 | 0.367 | 0.010 | 0.033 | DQN < MFI |
+| 40 | 0.336 | 0.329 | 0.007 | 0.018 | DQN < MFI |
 
-## 論文 Markdown の扱い
+sqrt なしでは DQN が MFI より低い RMSE を示すが、改善量は元論文 Table 1 よりかなり小さい。さらに MFI の RMSE 自体も元論文から大きく外れているため、この結果だけでは元論文 Table 1 の再現とは言えない。
 
-- 論文を Markdown 化する場合は `papers/<PDFファイル名>.md` の対応を保つ
-- 図を切り出す場合は `papers/img/<PDFファイル名>_figN.png` の命名を用いる
-- 既存の Markdown 論文を更新する場合は、図リンク切れ、節見出し、表の崩れも確認する
+sqrt ありデータセット（`data/3PL/`）：
+
+| Test length | 元論文 DQN | 元論文 MFI | local MFI | EXP010 DQN best | 優劣（RMSE） |
+|---:|---:|---:|---:|---:|---|
+| 10 | 0.415 | 0.493 | 0.504 | 0.470 | DQN < MFI |
+| 20 | 0.278 | 0.331 | 0.340 | 0.359 | DQN > MFI |
+| 30 | 0.244 | 0.277 | 0.278 | 0.303 | DQN > MFI |
+| 40 | 0.227 | 0.245 | 0.245 | 0.277 | DQN > MFI |
+
+`EXP010 DQN best` は、bank 1 で実施した gamma=0.05, 0.1, 0.3, 0.5, 0.7 のうち、各 step で最も低い RMSE を示した値である。最も有利な値を選んでも、step 20 から 40 では DQN が MFI より悪い。
+
+特に step 40 では、元論文は DQN 0.227 < MFI 0.245 だが、再現実験では DQN 0.277 > MFI 0.245 となっている。
+
+## 現状の問題点
+
+- EXP007 では DQN が MFI よりやや低い RMSE を示すが、MFI 自体が元論文より大幅に悪い。
+- EXP007 の DQN 改善量は元論文 Table 1 よりかなり小さい。
+- EXP008 の TD ターゲット修正では DQN の明確な改善は確認できなかった。
+- EXP009/EXP010 では MFI は元論文に近づいたが、DQN は step 20 から 40 で MFI より悪い。
+- EXP011 で報酬を論文定義どおり推定 theta-hat にしても、明確な改善は確認できなかった。
+- 元論文コードと論文アルゴリズムの報酬定義の乖離だけでは、元論文 Table 1 との差は説明できない。
+
+## 今後の確認事項
+
+DQN が MFI を安定して上回るという元論文 Table 1 の結果は、現時点では再現できていない。そのため、追加実験の前に以下を確認する必要がある。
+
+- 元論文本文のアルゴリズム、数式、実験条件と、公開されている実装プログラムの間に乖離がないか確認する。
+- 公開実装プログラムに、再現結果へ影響するバグが残っていないか確認する。
+- 乖離やバグを見つけた場合は、それが「論文本文準拠の修正」なのか「公開コード準拠の再現」なのかを区別して記録する。
+- 修正後は、DQN の RMSE だけでなく MFI との優劣を step 10, 20, 30, 40 で比較する。
 
 ## 実行コマンド
 
-Python の依存関係は `uv` と `pyproject.toml` で管理する。
+Python 依存関係：
 
 ```bash
 uv sync
+```
+
+リント・型チェック：
+
+```bash
 uv run ruff check -- src
 uv run ruff format --check -- src
 uv run pyright
 ```
 
-R スクリプトは以下の形式で実行する。
+R スクリプト：
 
 ```bash
 Rscript "src/generate_item_banks_3pl.R"
 Rscript "src/Test MFI on the 3PL bank.R"
 ```
 
-ファイル名にスペースが含まれる場合はパスを必ずクォートする。
+ファイル名にスペースが含まれるスクリプトや notebook があるため、コマンド実行時はパスを必ずクォートする。

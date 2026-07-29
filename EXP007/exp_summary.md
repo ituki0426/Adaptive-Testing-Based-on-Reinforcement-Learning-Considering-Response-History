@@ -42,7 +42,7 @@ Wang et al. (2024) の DQN ベース項目選択法を、元論文コード（`T
 
 | 項目 | 値 |
 |---|---|
-| アイテムバンク | `data/uncorrelated_banks/item_bank_uncor_{id}.csv`（n_items=500、実効項目数はバンクサイズに依存） |
+| アイテムバンク | `data/uncorrelated_banks/item_bank_uncor_{id}.csv`（n_items=500） |
 | 受検者数 | 5,000 名、θ ~ N(0, 1) |
 | テスト長 | 40 問 |
 | γ | 0.1 |

@@ -56,7 +56,7 @@ q_target   = batch_reward + cfg.gamma * q_next_max * (1.0 - batch_terminal)
 |---|---|---|
 | バンクディレクトリ | `data/uncorrelated_banks/` | `data/3PL/` |
 | ファイル名 | `item_bank_{type}_{id}.csv` | `item_bank_uncor_{id}.csv` |
-| 項目数（`n_items`） | 200 | 500 |
+| 項目数（`n_items`） | 500 | 500 |
 | `Config.bank_type` | あり | 削除（uncor 固定） |
 
 ## 各 EXP との変更の対応関係

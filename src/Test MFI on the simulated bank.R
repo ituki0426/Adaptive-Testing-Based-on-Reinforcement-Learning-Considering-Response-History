@@ -20,15 +20,10 @@ get_env <- function(name, default) {
 }
 
 estimate_theta <- function(item_bank, item_ids, responses, current_theta, theta_range = c(-4, 4)) {
-  if (all(responses == 1)) {
-    return(current_theta + (max(item_bank[, "b"]) - current_theta) / 2)
-  }
-  if (all(responses == 0)) {
-    return(current_theta + (min(item_bank[, "b"]) - current_theta) / 2)
-  }
-
   administered <- item_bank[item_ids, , drop = FALSE]
-  as.numeric(thetaEst(administered, responses, method = "ML", range = theta_range))
+  as.numeric(thetaEst(administered, responses, method = "EAP",
+                      priorDist = "norm", priorPar = c(0, 1),
+                      range = theta_range))
 }
 
 run_mfi_cat <- function(item_bank, theta_true, test_length, seed) {
@@ -48,7 +43,9 @@ run_mfi_cat <- function(item_bank, theta_true, test_length, seed) {
         theta = theta_current,
         out = item_ids,
         criterion = "MFI",
-        method = "ML",
+        method = "EAP",
+        priorDist = "norm",
+        priorPar = c(0, 1),
         range = c(-4, 4)
       )$item
 
@@ -93,7 +90,7 @@ summarize_steps <- function(records) {
 }
 
 bank_type <- get_env("BANK_TYPE", "uncor")
-bank_id <- as.integer(get_env("BANK_ID", "2"))
+bank_id <- as.integer(get_env("BANK_ID", "1"))
 test_length <- as.integer(get_env("TEST_LENGTH", "40"))
 testing_size <- as.integer(get_env("TESTING_SIZE", "0"))
 n_items <- as.integer(get_env("N_ITEMS", "500"))

@@ -43,7 +43,7 @@ reward = FI(item_bank[action,], state[-1:])
 
 EXP007 と同一：
 
-- アイテムバンク：`data/uncorrelated_banks/`（200項目）
+- アイテムバンク：`data/uncorrelated_banks/`（500項目）
 - 受検者数：5,000 名、θ ~ N(0, 1)
 - テスト長：40 問
 - 特性値推定：MLE、範囲 [-4, 4]

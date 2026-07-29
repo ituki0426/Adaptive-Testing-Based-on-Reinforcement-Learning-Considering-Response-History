@@ -2,7 +2,7 @@
 
 ## 目的
 
-EXP007（`data/uncorrelated_banks/`、200項目）の DQN 実験を、`data/3PL/`（500項目）のアイテムバンクで再実施する。元論文準拠のバンク設定が MFI・DQN の RMSE に与える影響を検証する。
+EXP007（`data/uncorrelated_banks/`、500項目）の DQN 実験を、`data/3PL/`（500項目）のアイテムバンクで再実施する。元論文準拠のバンク設定が MFI・DQN の RMSE に与える影響を検証する。
 
 ## EXP007 からの変更点
 
@@ -10,7 +10,7 @@ EXP007（`data/uncorrelated_banks/`、200項目）の DQN 実験を、`data/3PL/
 |---|---|---|
 | バンクディレクトリ | `data/uncorrelated_banks/` | `data/3PL/` |
 | バンクファイル名 | `item_bank_{type}_{id}.csv` | `item_bank_uncor_{id}.csv` |
-| 項目数（`n_items`） | 200 | 500 |
+| 項目数（`n_items`） | 500 | 500 |
 | `Config.bank_type` | あり（`"uncor"` / `"cor"`） | 削除（3PL は uncor 固定） |
 | 出力ファイルの stem | `{type}_{id}_DQN_...` | `3pl_{id}_DQN_...` |
 | モデル保存名 | `dqn_{prior}_{type}_{id}_...` | `dqn_{prior}_3pl_{id}_...` |
