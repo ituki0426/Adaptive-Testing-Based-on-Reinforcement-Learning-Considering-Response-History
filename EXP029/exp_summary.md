@@ -116,3 +116,60 @@ MLE推定に限定し、EXP029のDQNとEXP027のPython生成MFIを比較する�
   `EXP029/results/rmse_comparison_MLE_real_gamma_0.3.png`
 
 実データとシミュレーションではRMSEのスケールが異なるため、プロットのY軸は共有しない。
+
+## gamma別の方策と項目パラメータ比較
+
+保存済みの通常DQNモデルについて、共通の推定能力値を入力したときのQ値順位と
+項目パラメータを比較する。
+
+- Notebook:
+  `EXP029/notebook/analyze_policy_item_parameters_by_gamma.ipynb`
+- 対象: `data/uncorrelated_banks/item_bank_uncor_1.csv`、学習thetaのpriorはnormal
+- gamma: `0, 0.1, 0.3, 0.5, 0.9, 1`
+- 推定能力値: `-3, -2, -1, 0, 1, 2, 3`
+- 比較対象: 各gamma・推定能力値におけるQ値上位・下位10項目、および
+  同じ推定能力値におけるMFIのFisher情報量上位・下位10項目
+- 出題済み項目マスク: なし（初回選択時の方策を比較）
+
+出力：
+
+- 全項目ランキング:
+  `EXP029/results/policy_q_rankings_uncor_1_DQN_MLE_normal.csv`
+- 上位・下位10項目のパラメータ要約:
+  `EXP029/results/policy_item_parameter_summary_uncor_1_DQN_MLE_normal.csv`
+- MFIのFisher情報量ランキング:
+  `EXP029/results/mfi_rankings_uncor_1_MLE.csv`
+- MFI上位・下位10項目のパラメータ要約:
+  `EXP029/results/mfi_item_parameter_summary_uncor_1_MLE.csv`
+- DQNとMFIのパラメータ平均比較図:
+  `EXP029/results/policy_item_parameters_with_MFI_uncor_1_DQN_MLE_normal.png`
+
+テスト時の方策はgreedyであるため、固定した推定能力値ではQ値1位の項目が
+決定的に選択される。「選ばれやすい項目」はQ値上位、「選ばれにくい項目」は
+Q値下位として操作的に定義する。Q値の絶対的な尺度はモデルごとに異なるため、
+gamma間ではQ値そのものではなくモデル内順位と項目パラメータを比較する。
+MFIについても固定した推定能力値ではFisher情報量1位の項目が決定的に選択される。
+図では同じ件数で比較するため、MFIの情報量上位・下位10項目の平均を基準線として示す。
+
+各gammaは現状1学習runであり、学習開始時のNumPy・PyTorch乱数は固定されていない。
+このため、観察された方策差をgammaだけの効果とは断定しない。
+
+### Bank 2
+
+同じNotebook内で `data/uncorrelated_banks/item_bank_uncor_2.csv` も分析する。
+bank 2にはgamma=1の保存モデルがないため、利用可能な
+`0, 0.1, 0.3, 0.5, 0.7, 0.9` を対象とする。それ以外の推定能力値、上位・下位の
+項目数、MFIの計算式、出題済み項目マスクの扱いはbank 1と同じである。
+
+出力：
+
+- DQNのQ値ランキング:
+  `EXP029/results/policy_q_rankings_uncor_2_DQN_MLE_normal.csv`
+- DQN上位・下位10項目のパラメータ要約:
+  `EXP029/results/policy_item_parameter_summary_uncor_2_DQN_MLE_normal.csv`
+- MFIのFisher情報量ランキング:
+  `EXP029/results/mfi_rankings_uncor_2_MLE.csv`
+- MFI上位・下位10項目のパラメータ要約:
+  `EXP029/results/mfi_item_parameter_summary_uncor_2_MLE.csv`
+- DQNとMFIのパラメータ平均比較図:
+  `EXP029/results/policy_item_parameters_with_MFI_uncor_2_DQN_MLE_normal.png`
